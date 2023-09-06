@@ -67,7 +67,7 @@ use_feat_dynamic_real = true
 use_feat_static_cat = true
 cardinality = [5567]
 add_age_feature = [true, false]
-embedding_dim = [64, 128, 256]
+embedding_dimension = [[64], [128], [256]]
 #decoder_mlp_dim_seq = [[16], [32], [64], [128]]
 #channels_seq = [[16,16,16],[32,32,32],[64,64,64]]
 
