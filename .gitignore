@@ -1,0 +1,8 @@
+*.pyc
+.metaflow*
+lightning_logs*
+metaflow_card_cache*
+.vscode/launch.json
+*png
+*.csv
+

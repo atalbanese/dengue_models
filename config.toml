@@ -1,0 +1,117 @@
+[base]
+file_loc = '/home/tony/dengue/all_dengue_data_agg_clustered.parquet'
+ignore_vars = [
+    'ntl'
+    ]
+
+# Options:
+#   deep_ar, deep_state, deep_factor, mqcnn, transformer_mx, transformer, feed_forward
+#model = 'feed_forward'
+model= ['mqcnn', 'feed_forward']
+
+#General Training Parameters
+[general_model]
+train_batch_size = 1024
+valid_batch_size = 128
+batches_per_epoch = 50
+context_length = 24
+prediction_length = 3
+epochs = 10
+num_test_samples = 100
+
+#Data reshaping parameters
+[reshape]
+time_stamp = 'case_start_month'
+item_id = 'muni_id'
+static_features = [
+    'x',
+    'y'
+]
+dynamic_features = [
+    'MEI',
+    'precip_min_median',
+    'temp_median'
+]
+target = 'cases_per_100k'
+frequency = '1M'
+train_time_limit = '2018-01-01'
+valid_time_limit = '2019-01-01'
+test_time_limit = '2020-01-01'
+
+
+#Model specific parameters
+#Each model needs at least a dataloader type of either 'gluonts' or 'torch'
+
+[deep_ar]
+loader = 'gluonts'
+use_feat_static_real = true
+context_length = 24
+use_feat_dynamic_real = true
+
+[deep_state]
+loader = 'gluonts'
+past_length=24
+cardinality = [5567]
+use_feat_dynamic_real = true
+use_feat_static_cat = true
+
+[deep_factor]
+loader = 'gluonts'
+context_length = 24
+cardinality = [5567]
+
+[mqcnn]
+loader = 'gluonts'
+context_length = [12,24,36,48]
+use_feat_dynamic_real = true
+use_feat_static_cat = true
+cardinality = [5567]
+add_age_feature = [true, false]
+embedding_dim = [64, 128, 256]
+#decoder_mlp_dim_seq = [[16], [32], [64], [128]]
+#channels_seq = [[16,16,16],[32,32,32],[64,64,64]]
+
+
+
+[transformer_mx]
+loader = 'gluonts'
+cardinality = [5567]
+
+[transformer]
+device = 'cuda'
+loader = 'torch'
+hidden_dimensions = [64, 128]
+lr = 0.0001
+
+[feed_forward]
+device = 'cuda'
+loader = 'torch'
+hidden_dimensions = [[96, 48], [128, 64]]
+lr = [0.0001, 0.001, 0.00001]
+
+
+#Evaluation Mapping parameters
+[maps]
+muni_file = '/home/tony/dengue/simple_muni/munis_simple.shp'
+
+[[metrics]]
+name = 'MASE'
+vmax = 2
+vmin = 0
+cmap = 'seismic'
+
+[[metrics]]
+name = 'MSE'
+scheme = 'jenks_caspall_forced'
+
+#[[metrics.options]]
+#k=10
+
+[[metrics]]
+name = 'abs_error'
+scheme = 'jenks_caspall_forced'
+
+[[metrics]]
+name = 'sMAPE'
+vmax = 2
+vmin = 0
