@@ -30,7 +30,7 @@ class ModelFlow(FlowSpec):
     @step
     def read_config(self):
         self.config = tomllib.loads(self.config_file)
-        self.models = self.config['base']['model']
+        self.features = self.config['reshape']['dynamic_features']
         
         self.next(self.load_data)
 
@@ -40,14 +40,14 @@ class ModelFlow(FlowSpec):
     def load_data(self):
         self.dataset = utils.load_data(self.config['base']['file_loc'], self.config['base']['ignore_vars'])
         #print(self.dataset)
-        self.next(self.train_model, foreach='models')
+        self.next(self.train_model, foreach='features')
 
     @comet_skip
     #@card
     @step
     def train_model(self):
         config = self.config
-        config['base']['model'] = self.input
+        config['reshape']['dynamic_features'] = [self.input]
         model_data = utils.load_reshaper(self.dataset, config).get_data()
         self.test_data = model_data['test']
         model = utils.load_model(config)
