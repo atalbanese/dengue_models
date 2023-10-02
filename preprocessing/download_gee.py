@@ -1,12 +1,17 @@
 import ee
+#Notebook mode needed to run remotely
+#ee.Authenticate(auth_mode='notebook')
+ee.Initialize()
 import geemap
 import tomllib
 import click
 
+
 @click.command
-@click.option('--config-file', type='str', default='./preprocessing/gee_config.toml')
+@click.option('--config-file', type=str, default='preprocessing/gee_config.toml')
 def main(config_file): 
-    config = tomllib.loads(config_file)
+    with open(config_file, 'rb') as f:
+        config = tomllib.load(f)
     #global nonsense to accomodate GEE
     global assets
     populate_assets(config)
@@ -28,13 +33,11 @@ def populate_assets(config):
     
     
 def download_all(config):
-    for dataset in config['datasets'].values():
+    for dataset in config['datasets']:
         #Need to split up time otherwise we reach GEE limits
         export_over_time(config['base']['start_month_1'], config['base']['num_months_1'], dataset['collection'], dataset['parameter'], dataset['extra_id'])
         export_over_time(config['base']['start_month_2'], config['base']['num_months_2'], dataset['collection'], dataset['parameter'], dataset['extra_id'])
 
-
-#TODO: Make sure everything is 4326
 #Helper fns
 #We have municipios split into two chunks since there are over 5000 munis which is over the GEE feature collection limit
 def load_munis(munis_1, munis_2):
@@ -81,14 +84,17 @@ def export_over_time(start_mo, num_months, collection, parameter, extra_id):
         ).map(lambda f: f.set({
             'start_date': base_date.advance(n, 'month').format('YYYY-MM-dd'),
             'end_date': base_date.advance(ee.Number(n).add(1), 'month').format('YYYY-MM-dd')
-        }))
+            })
+        )
 
     month_ranges = ee.FeatureCollection(
         ee.List.sequence(0, num_months)
         .map(month_mapper)
     ).flatten()
 
-    geemap.common.ee_export_vector(month_ranges, 'test.csv')
+    geemap.common.ee_export_vector(month_ranges, 
+                                   'test.csv',
+                                   selectors = ['CD_MUN', 'median', 'start_date', 'end_date'])
 
 if __name__ == '__main__':
     main()

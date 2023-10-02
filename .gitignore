@@ -8,3 +8,4 @@ metaflow_card_cache*
 *.parquet
 *.js
 *test.*
+*gcs*

@@ -1,0 +1,19 @@
+[base]
+crs = 'EPSG:4326'
+scale = 1000
+reducer = 'median'
+munis_1 = './data/brazil/munis_split/munis_1_simple.shp'
+munis_2 = './data/brazil/munis_split/munis_2_simple.shp'
+start_month_1 = '2000-12-01'
+num_months_1 = 131
+start_month_2 = '2011-12-01'
+num_months_2 = 108
+
+[[datasets]]
+collection = 'ECMWF/ERA5_LAND/DAILY_AGGR'
+parameter = 'total_precipitation_min'
+
+[[datasets]]
+collection = 'ECMWF/ERA5_LAND/DAILY_AGGR'
+parameter = 'total_precipitation_max'
+
