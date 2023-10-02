@@ -2,8 +2,8 @@
 crs = 'EPSG:4326'
 scale = 1000
 reducer = 'median'
-munis_1 = './data/brazil/munis_split/munis_1_simple.shp'
-munis_2 = './data/brazil/munis_split/munis_2_simple.shp'
+munis_1 = './data/brazil/munis_split/munis_1_4326_simple.geojson'
+munis_2 = './data/brazil/munis_split/munis_2_4326_simple.geojson'
 start_month_1 = '2000-12-01'
 num_months_1 = 131
 start_month_2 = '2011-12-01'

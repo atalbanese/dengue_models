@@ -12,13 +12,12 @@ import click
 def main(config_file): 
     with open(config_file, 'rb') as f:
         config = tomllib.load(f)
-    #global nonsense to accomodate GEE
-    global assets
+
     populate_assets(config)
     download_all(config)
 
 def populate_assets(config):
-    assets = dict()
+    #assets = dict()
     assets['population'] = ee.ImageCollection("WorldPop/GP/100m/pop").filter(ee.Filter.eq('country', 'BRA'))
     assets['bbox'] = ee.Geometry.Polygon(
         [[[-76.58124317412843, 6.639971446351328],
@@ -35,13 +34,13 @@ def populate_assets(config):
 def download_all(config):
     for dataset in config['datasets']:
         #Need to split up time otherwise we reach GEE limits
-        export_over_time(config['base']['start_month_1'], config['base']['num_months_1'], dataset['collection'], dataset['parameter'], dataset['extra_id'])
-        export_over_time(config['base']['start_month_2'], config['base']['num_months_2'], dataset['collection'], dataset['parameter'], dataset['extra_id'])
+        export_over_time(config['base']['start_month_1'], config['base']['num_months_1'], dataset['collection'], dataset['parameter'])
+        export_over_time(config['base']['start_month_2'], config['base']['num_months_2'], dataset['collection'], dataset['parameter'])
 
 #Helper fns
 #We have municipios split into two chunks since there are over 5000 munis which is over the GEE feature collection limit
 def load_munis(munis_1, munis_2):
-    return geemap.shp_to_ee(munis_1), geemap.shp_to_ee(munis_2)
+    return geemap.geojson_to_ee(munis_1), geemap.geojson_to_ee(munis_2)
 
 def clip_to_munis(img):
     return(img.clip(assets['bbox']))
@@ -65,7 +64,7 @@ def agg_to_munis(img):
     return img_stats_1.merge(img_stats_2)
 
 
-def export_over_time(start_mo, num_months, collection, parameter, extra_id):
+def export_over_time(start_mo, num_months, collection, parameter):
     col = ee.ImageCollection(collection).select(parameter)
     base_date = ee.Date(start_mo)
 
@@ -97,4 +96,6 @@ def export_over_time(start_mo, num_months, collection, parameter, extra_id):
                                    selectors = ['CD_MUN', 'median', 'start_date', 'end_date'])
 
 if __name__ == '__main__':
+    #global nonsense to accomodate GEE
+    assets = dict()
     main()
