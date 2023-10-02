@@ -6,3 +6,5 @@ metaflow_card_cache*
 *png
 *.csv
 *.parquet
+*.js
+*test.*
