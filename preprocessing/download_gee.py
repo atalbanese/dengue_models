@@ -20,11 +20,11 @@ def main(config_file, clean):
     with open(config_file, 'rb') as f:
         config = tomllib.load(f)
 
-    #populate_assets(config)
-    #download_all(config)
+    populate_assets(config)
+    download_all(config)
     join_all(config)
-    #if clean:
-    #    cleanup(config)
+    if clean:
+        cleanup(config)
 
 def join_all(config):
     all_parquets = glob.glob(os.path.join(config['base']['save_dir'], '*.parquet'))
@@ -35,7 +35,12 @@ def join_all(config):
     if len(all_parquets)>1:
         for f in all_parquets[1:]:
             base_df = base_df.join(pl.read_parquet(f), on=['muni_id', 'start_date', 'end_date'])
-    base_df.write_parquet(os.path.join(config['base']['save_dir'],f'all_parameters_{config["start_date"]}_{config["end_date"]}.parquet'))
+    base_df.write_parquet(
+        os.path.join(
+            config['base']['save_dir'],
+            f'all_parameters_{config["base"]["start_date"]}_{config["base"]["end_date"]}_{config["base"]["agg_unit"]}.parquet'
+            )
+        )
     return True
 
 
@@ -152,9 +157,9 @@ def agg_to_munis(img):
 def export_over_time(args_dict):
     #relativedelta uses plural units, GEE uses singular
     time_unit = args_dict["time_unit"][:-1]
-    print(args_dict)
+    #print(args_dict)
     col = ee.ImageCollection(args_dict["collection"]).select(args_dict["parameter"])
-    print(col.propertyNames())
+    #print(col.propertyNames())
     base_date = ee.Date(args_dict["start_date"])
 
     def month_mapper(n):

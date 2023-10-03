@@ -16,6 +16,6 @@ collection = 'ECMWF/ERA5_LAND/DAILY_AGGR'
 parameter = 'total_precipitation_min'
 
 [[datasets]]
-collection = 'ECMWF/ERA5_LAND/DAILY_AGGR'
-parameter = 'total_precipitation_max'
+collection = 'MODIS/MOD09GA_006_EVI'
+parameter = 'EVI'
 
