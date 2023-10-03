@@ -5,9 +5,11 @@ reducer = 'median'
 munis_1 = 'projects/ee-dengue-proof-of-concept/assets/munis_simple_1'
 munis_2 = 'projects/ee-dengue-proof-of-concept/assets/munis_simple_2'
 start_date = '2001-01-01'
-end_date = '2022-01-01'
+end_date = '2002-01-01'
 agg_unit = 'months'
-agg_chunks = 12
+agg_chunks = 6
+save_dir = './data/gee_exports'
+max_workers = 6
 
 [[datasets]]
 collection = 'ECMWF/ERA5_LAND/DAILY_AGGR'
