@@ -28,7 +28,7 @@ def main(config_file, clean):
 
 def join_all(config):
     all_parquets = glob.glob(os.path.join(config['base']['save_dir'], '*.parquet'))
-    check_base_exists = glob.glob(os.path.join(config['base']['save_dir'], 'all_parameters_*'))
+    check_base_exists = glob.glob(os.path.join(config['base']['save_dir'], f'*{config["base"]["agg_unit"]}.parquet'))
     if len(check_base_exists)>0:
         all_parquets = list(set(all_parquets)-set(check_base_exists))
     base_df = pl.read_parquet(all_parquets[0])
@@ -123,12 +123,6 @@ def fulfill_requests(requests, config):
 #We have municipios split into two chunks since there are over 5000 munis which is over the GEE feature collection limit
 #There is a bug in uploading shapefiles so we are stuck using already uploaded assets
 def load_munis(munis_1, munis_2):
-    #return geemap.geojson_to_ee(munis_1), geemap.geojson_to_ee(munis_2)
-    #return geemap.shp_to_ee(munis_1), geemap.shp_to_ee(munis_2)
-    #munis_1 = gpd.read_file(munis_1)[0:250]
-    #munis_2 = gpd.read_file(munis_2)[0:10]
-
-    #return geemap.geopandas_to_ee(munis_1), geemap.geopandas_to_ee(munis_2)
     return ee.FeatureCollection(munis_1), ee.FeatureCollection(munis_2)
 
 def clip_to_munis(img):
@@ -157,12 +151,11 @@ def agg_to_munis(img):
 def export_over_time(args_dict):
     #relativedelta uses plural units, GEE uses singular
     time_unit = args_dict["time_unit"][:-1]
-    #print(args_dict)
     col = ee.ImageCollection(args_dict["collection"]).select(args_dict["parameter"])
-    #print(col.propertyNames())
+
     base_date = ee.Date(args_dict["start_date"])
 
-    def month_mapper(n):
+    def time_mapper(n):
         return agg_to_munis(
             col.filterDate(
                 ee.DateRange(
@@ -183,7 +176,7 @@ def export_over_time(args_dict):
     month_ranges = ee.FeatureCollection(
         #Sequence is inclusive []
         ee.List.sequence(0, args_dict["num_units"]-1)
-        .map(month_mapper)
+        .map(time_mapper)
     ).flatten()
 
     #print(month_ranges)
