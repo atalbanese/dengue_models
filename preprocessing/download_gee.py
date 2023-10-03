@@ -5,7 +5,9 @@ ee.Initialize()
 import geemap
 import tomllib
 import click
-
+#import geopandas as gpd
+from datetime import datetime
+from dateutil.relativedelta import relativedelta
 
 @click.command
 @click.option('--config-file', type=str, default='preprocessing/gee_config.toml')
@@ -29,32 +31,58 @@ def populate_assets(config):
                          'mean': ee.Reducer.mean()}[config['base']['reducer']]
     assets['crs'] = config['base']['crs']
     assets['scale'] = config['base']['scale']
+
+def generate_requests(config, dataset):
+    start_date, end_date = datetime.fromisoformat(config['base']['start_date']), datetime.fromisoformat(config['base']['end_date'])
+    requests = list()
+
+    while start_date < end_date:
+        requests.append({
+            'start_date': start_date,
+            'num_units': config['base']['agg_chunks'], #if config['base']['agg_unit']+start_date < end_date else end_date-start_date
+            'collection': dataset['collection'],
+            'parameter': dataset['parameter'],
+            'time_unit': config['base']['agg_unit']
+        })
+        start_date = start_date + relativedelta(**{config['base']['agg_unit']:config['base']['agg_chunks']})
+        
+    return requests
     
-    
+#Downloading locally has lower computational limits than exporting to google drive so we are gonna run a lot of parallel chunks here
+#If I cant get this to work consistently will switch to drive export then download from there
 def download_all(config):
     for dataset in config['datasets']:
         #Need to split up time otherwise we reach GEE limits
-        export_over_time(config['base']['start_month_1'], config['base']['num_months_1'], dataset['collection'], dataset['parameter'])
-        export_over_time(config['base']['start_month_2'], config['base']['num_months_2'], dataset['collection'], dataset['parameter'])
+        requests = generate_requests(config, dataset)
+        pass
+        #export_over_time(config['base']['start_month_1'], config['base']['num_months_1'], dataset['collection'], dataset['parameter'])
+        #export_over_time(config['base']['start_month_2'], config['base']['num_months_2'], dataset['collection'], dataset['parameter'])
 
 #Helper fns
 #We have municipios split into two chunks since there are over 5000 munis which is over the GEE feature collection limit
+#There is a bug in uploading shapefiles so we are stuck using already uploaded assets
 def load_munis(munis_1, munis_2):
-    return geemap.geojson_to_ee(munis_1), geemap.geojson_to_ee(munis_2)
+    #return geemap.geojson_to_ee(munis_1), geemap.geojson_to_ee(munis_2)
+    #return geemap.shp_to_ee(munis_1), geemap.shp_to_ee(munis_2)
+    #munis_1 = gpd.read_file(munis_1)[0:250]
+    #munis_2 = gpd.read_file(munis_2)[0:10]
+
+    #return geemap.geopandas_to_ee(munis_1), geemap.geopandas_to_ee(munis_2)
+    return ee.FeatureCollection(munis_1), ee.FeatureCollection(munis_2)
 
 def clip_to_munis(img):
     return(img.clip(assets['bbox']))
 
 #Population weighted aggregation
 def agg_to_munis(img):
-    img_stats_1 =  img.reduceRegions({
+    img_stats_1 =  img.reduceRegions(**{
         'collection': assets['munis_simple_1'],
         'reducer':  assets['reducer'].splitWeights(),
         'scale': assets['scale'],  # meters
         'crs': assets['crs'],
     })
 
-    img_stats_2 =  img.reduceRegions({
+    img_stats_2 =  img.reduceRegions(**{
         'collection': assets['munis_simple_2'],
         'reducer': assets['reducer'].splitWeights(),
         'scale': assets['scale'],
@@ -64,33 +92,36 @@ def agg_to_munis(img):
     return img_stats_1.merge(img_stats_2)
 
 
-def export_over_time(start_mo, num_months, collection, parameter):
+def export_over_time(start_date, num_units, collection, parameter, time_unit):
+    #relativedelta uses plural units, GEE uses singular
+    time_unit = time_unit[:-1]
     col = ee.ImageCollection(collection).select(parameter)
-    base_date = ee.Date(start_mo)
+    base_date = ee.Date(start_date)
 
     def month_mapper(n):
         return agg_to_munis(
             col.filterDate(
                 ee.DateRange(
-                    base_date.advance(n, 'month'), 
-                    base_date.advance(ee.Number(n).add(1), 'month')
+                    base_date.advance(n, time_unit), 
+                    base_date.advance(ee.Number(n).add(1), time_unit)
                 )
             ).map(clip_to_munis)
             .median()
             .addBands(
-                assets['population'].filter(ee.Filter.eq('year', base_date.advance(n, 'month').get('year'))).first().unitScale(0, 21171)
+                assets['population'].filter(ee.Filter.eq('year', base_date.advance(n, time_unit).get('year'))).first().unitScale(0, 21171)
             )
         ).map(lambda f: f.set({
-            'start_date': base_date.advance(n, 'month').format('YYYY-MM-dd'),
-            'end_date': base_date.advance(ee.Number(n).add(1), 'month').format('YYYY-MM-dd')
+            'start_date': base_date.advance(n, time_unit).format('YYYY-MM-dd'),
+            'end_date': base_date.advance(ee.Number(n).add(1), time_unit).format('YYYY-MM-dd')
             })
         )
 
     month_ranges = ee.FeatureCollection(
-        ee.List.sequence(0, num_months)
+        ee.List.sequence(0, num_units)
         .map(month_mapper)
     ).flatten()
 
+    #print(month_ranges)
     geemap.common.ee_export_vector(month_ranges, 
                                    'test.csv',
                                    selectors = ['CD_MUN', 'median', 'start_date', 'end_date'])
