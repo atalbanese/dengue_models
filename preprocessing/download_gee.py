@@ -1,8 +1,7 @@
 import ee
-#Notebook mode needed to run remotely
-#ee.Authenticate(auth_mode='notebook')
-ee.Initialize()
-import geemap
+import time
+import gdown
+from collections import deque
 import tomllib
 import click
 #import geopandas as gpd
@@ -16,24 +15,39 @@ import glob
 @click.command
 @click.option('--config-file', type=str, default='preprocessing/gee_config.toml')
 @click.option('--clean', type=bool, default=True)
-def main(config_file, clean): 
+@click.option('--auth', type=bool, default=False)
+def main(config_file, clean, auth): 
+    if auth:
+        ee.Authenticate(auth_mode='notebook')
+    ee.Initialize()
     with open(config_file, 'rb') as f:
         config = tomllib.load(f)
 
     populate_assets(config)
     download_all(config)
-    join_all(config)
+    merge_all(config)
+    # print("COMPLETED:\n")
+    # print(completed_jobs)
+
+    # print("FAILED:\n")
+    # print(failed_jobs)
+    parquets = join_all(config)
     if clean:
-        cleanup(config)
+        cleanup(config, parquets)
 
 def join_all(config):
     all_parquets = glob.glob(os.path.join(config['base']['save_dir'], '*.parquet'))
     check_base_exists = glob.glob(os.path.join(config['base']['save_dir'], f'*{config["base"]["agg_unit"]}.parquet'))
     if len(check_base_exists)>0:
         all_parquets = list(set(all_parquets)-set(check_base_exists))
-    base_df = pl.read_parquet(all_parquets[0])
+        to_read = check_base_exists[0]
+        start_index=0
+    else:
+        to_read = all_parquets[0]
+        start_index=1
+    base_df = pl.read_parquet(to_read)
     if len(all_parquets)>1:
-        for f in all_parquets[1:]:
+        for f in all_parquets[start_index:]:
             base_df = base_df.join(pl.read_parquet(f), on=['muni_id', 'start_date', 'end_date'])
     base_df.write_parquet(
         os.path.join(
@@ -41,13 +55,15 @@ def join_all(config):
             f'all_parameters_{config["base"]["start_date"]}_{config["base"]["end_date"]}_{config["base"]["agg_unit"]}.parquet'
             )
         )
-    return True
+    return all_parquets
 
 
-def cleanup(config):
+def cleanup(config, all_parquets):
     all_csvs = glob.glob(os.path.join(config['base']['save_dir'], '*.csv'))
     for csv in all_csvs:
         os.remove(csv)
+    for parquet in all_parquets:
+        os.remove(parquet)
 
 def populate_assets(config):
     #assets = dict()
@@ -73,7 +89,7 @@ def generate_requests(config, dataset):
             'collection': dataset['collection'],
             'parameter': dataset['parameter'],
             'time_unit': config['base']['agg_unit'],
-            'save_dir': config['base']['save_dir']
+            'drive_folder': config['base']['drive_folder']
         })
         start_date = start_date + relativedelta(**{config['base']['agg_unit']:config['base']['agg_chunks']})
         
@@ -86,8 +102,21 @@ def download_all(config):
         #Need to split up time otherwise we reach GEE limits
         requests = generate_requests(config, dataset)
         fulfill_requests(requests, config)
+    success = monitor_exports()
+    if success:
+        gdown.download_folder(url=config['base']['drive_link'],output=config['base']['save_dir'])
+    else:
+        print('failed to export all jobs to drive, not downloading locally')
+        print(failed_jobs)
+        raise BaseException
+        #merge_downloads(config, dataset)
+    return True
+
+def merge_all(config):
+    for dataset in config['datasets']:
         merge_downloads(config, dataset)
     return True
+
 
 
 def merge_downloads(config, dataset):
@@ -104,20 +133,23 @@ def merge_downloads(config, dataset):
 
 
 def fulfill_requests(requests, config):
-    with ProcessPool(max_workers=config['base']['max_workers']) as pool:
-        future = pool.map(export_over_time, requests, timeout=600)
-        iterator = future.result()
 
-        while True:
-            try:
-                result = next(iterator)
-            except StopIteration:
-                break
-            except TimeoutError as error:
-                print(error)
-            except Exception as error:
-                print(error)
-    return True
+    for req in requests:
+        export_over_time(req)
+    # with ProcessPool(max_workers=config['base']['max_workers']) as pool:
+    #     future = pool.map(export_over_time, requests, timeout=600)
+    #     iterator = future.result()
+
+    #     while True:
+    #         try:
+    #             result = next(iterator)
+    #         except StopIteration:
+    #             break
+    #         except TimeoutError as error:
+    #             print(error)
+    #         except Exception as error:
+    #             print(error)
+    # return True
 
 #Helper fns
 #We have municipios split into two chunks since there are over 5000 munis which is over the GEE feature collection limit
@@ -180,12 +212,51 @@ def export_over_time(args_dict):
     ).flatten()
 
     #print(month_ranges)
-    geemap.common.ee_export_vector(month_ranges, 
-                                   os.path.join(args_dict["save_dir"], f'{args_dict["parameter"]}_{args_dict["start_date"]}.csv'),
-                                   selectors = ['CD_MUN', 'median', 'start_date', 'end_date'])
+    # geemap.common.ee_export_vector(month_ranges, 
+    #                                os.path.join(args_dict["save_dir"], f'{args_dict["parameter"]}_{args_dict["start_date"]}.csv'),
+    #                                selectors = ['CD_MUN', 'median', 'start_date', 'end_date'])
+    jobs.append(
+    ee.batch.Export.table.toDrive(
+        collection=month_ranges,
+        fileFormat='CSV',
+        selectors = ['CD_MUN', 'median', 'start_date', 'end_date'],
+        folder=args_dict['drive_folder'],
+        description=f'{args_dict["parameter"]}_{args_dict["start_date"]}'
+    ))
     return True
+
+def monitor_exports():
+    running = len(jobs) > 0
+    print('EXPORTING TO DRIVE...')
+    while running:
+        sleep_time = 5
+        job = jobs.pop()
+        state = job.status()['state']
+        if state == 'UNSUBMITTED':
+            job.start()
+            sleep_time = 0
+            jobs.appendleft(job)
+        elif state == 'READY':
+            jobs.appendleft(job)
+        elif state == 'COMPLETED':
+            completed_jobs.append(job)
+            print(f'COMPLETED: {job.status()}')
+        elif state == 'RUNNING':
+            jobs.appendleft(job)
+            print(f'RUNNING: {job.status()}')
+        elif state == 'FAILED':
+            failed_jobs.append(job)
+            print(f'FAILED: {job.status()}')
+        else:
+            print(f'NOT SURE: {job.status()}')
+        running = len(jobs) > 0
+        time.sleep(sleep_time)
+    return len(failed_jobs) == 0  
 
 if __name__ == '__main__':
     #global nonsense to accomodate GEE
     assets = dict()
+    jobs = deque()
+    completed_jobs = list()
+    failed_jobs= list()
     main()
