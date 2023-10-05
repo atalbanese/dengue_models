@@ -96,6 +96,8 @@ def download_all(config):
         requests = generate_requests(config, dataset)
         fulfill_requests(requests)
     monitor_exports(config)
+    #undocumented hack, potential side effects unknown!
+    gdown.download_folder.__globals__['MAX_NUMBER_FILES'] = 200
     gdown.download_folder(url=config['base']['drive_link'], output=config['base']['save_dir'], quiet=True)
 
 
@@ -116,7 +118,10 @@ def write_metadata(config, dataset):
             Start Date: {config["base"]["start_date"]}\n\
             End Date: {config["base"]["end_date"]}\n\
             Time Units: {config["base"]["agg_unit"]}\n\
-            Date Downloaded: {datetime.utcnow().isoformat()}\n'
+            Date Downloaded: {datetime.utcnow().isoformat()}\n\
+            Population Weighted: True\n\
+            Time aggregation: Median\n\
+            Space aggregation: {config["base"]["reducer"]}\n'
         )
 
 def check_dataset(dataset):
@@ -288,3 +293,4 @@ if __name__ == '__main__':
     completed_jobs = list()
     failed_jobs= list()
     main()
+    

@@ -17,43 +17,43 @@ retries = 2
 collection = 'ECMWF/ERA5_LAND/DAILY_AGGR'
 parameter = 'total_precipitation_min'
 
-[[datasets]]
-collection = 'MODIS/MOD09GA_006_EVI'
-parameter = 'EVI'
+# [[datasets]]
+# collection = 'MODIS/MOD09GA_006_EVI'
+# parameter = 'EVI'
 
-[[datasets]]
-collection = 'ECMWF/ERA5_LAND/DAILY_AGGR'
-parameter = 'temperature_2m'
+# [[datasets]]
+# collection = 'ECMWF/ERA5_LAND/DAILY_AGGR'
+# parameter = 'temperature_2m'
 
-[[datasets]]
-collection = 'ECMWF/ERA5_LAND/DAILY_AGGR'
-parameter = 'total_precipitation_sum'
+# [[datasets]]
+# collection = 'ECMWF/ERA5_LAND/DAILY_AGGR'
+# parameter = 'total_precipitation_sum'
 
-[[datasets]]
-collection = 'ECMWF/ERA5_LAND/DAILY_AGGR'
-parameter = 'surface_runoff_min'
+# [[datasets]]
+# collection = 'ECMWF/ERA5_LAND/DAILY_AGGR'
+# parameter = 'surface_runoff_min'
 
-[[datasets]]
-collection = 'ECMWF/ERA5_LAND/DAILY_AGGR'
-parameter = 'total_evaporation_sum'
+# [[datasets]]
+# collection = 'ECMWF/ERA5_LAND/DAILY_AGGR'
+# parameter = 'total_evaporation_sum'
 
-[[datasets]]
-collection = 'ECMWF/ERA5_LAND/DAILY_AGGR'
-parameter = 'runoff_sum'
+# [[datasets]]
+# collection = 'ECMWF/ERA5_LAND/DAILY_AGGR'
+# parameter = 'runoff_sum'
 
-[[datasets]]
-collection = 'ECMWF/ERA5_LAND/DAILY_AGGR'
-parameter = 'evaporation_from_open_water_surfaces_excluding_oceans_min'
+# [[datasets]]
+# collection = 'ECMWF/ERA5_LAND/DAILY_AGGR'
+# parameter = 'evaporation_from_open_water_surfaces_excluding_oceans_min'
 
-[[datasets]]
-collection = 'ECMWF/ERA5_LAND/DAILY_AGGR'
-parameter = 'volumetric_soil_water_layer_1'
+# [[datasets]]
+# collection = 'ECMWF/ERA5_LAND/DAILY_AGGR'
+# parameter = 'volumetric_soil_water_layer_1'
 
-[[datasets]]
-collection = 'ECMWF/ERA5_LAND/DAILY_AGGR'
-parameter = 'soil_temperature_level_1'
+# [[datasets]]
+# collection = 'ECMWF/ERA5_LAND/DAILY_AGGR'
+# parameter = 'soil_temperature_level_1'
 
-[[datasets]]
-collection = 'ECMWF/ERA5_LAND/DAILY_AGGR'
-parameter = 'dewpoint_temperature_2m'
+# [[datasets]]
+# collection = 'ECMWF/ERA5_LAND/DAILY_AGGR'
+# parameter = 'dewpoint_temperature_2m'
 
