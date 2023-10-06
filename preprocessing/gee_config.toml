@@ -7,7 +7,7 @@ munis_2 = 'projects/ee-dengue-proof-of-concept/assets/munis_simple_2'
 start_date = '2001-01-01'
 end_date = '2021-01-01'
 agg_unit = 'months'
-num_units = 48
+num_units = 72
 drive_folder = 'dengue_export_test'
 drive_link = 'https://drive.google.com/drive/folders/18_-oyZdy2lacadC6EA_89KX08LzUassE'
 save_dir = './data/gee_exports'
@@ -17,43 +17,43 @@ retries = 2
 collection = 'ECMWF/ERA5_LAND/DAILY_AGGR'
 parameter = 'total_precipitation_min'
 
-# [[datasets]]
-# collection = 'MODIS/MOD09GA_006_EVI'
-# parameter = 'EVI'
+[[datasets]]
+collection = 'MODIS/MOD09GA_006_EVI'
+parameter = 'EVI'
 
-# [[datasets]]
-# collection = 'ECMWF/ERA5_LAND/DAILY_AGGR'
-# parameter = 'temperature_2m'
+[[datasets]]
+collection = 'ECMWF/ERA5_LAND/DAILY_AGGR'
+parameter = 'temperature_2m'
 
-# [[datasets]]
-# collection = 'ECMWF/ERA5_LAND/DAILY_AGGR'
-# parameter = 'total_precipitation_sum'
+[[datasets]]
+collection = 'ECMWF/ERA5_LAND/DAILY_AGGR'
+parameter = 'total_precipitation_sum'
 
-# [[datasets]]
-# collection = 'ECMWF/ERA5_LAND/DAILY_AGGR'
-# parameter = 'surface_runoff_min'
+[[datasets]]
+collection = 'ECMWF/ERA5_LAND/DAILY_AGGR'
+parameter = 'surface_runoff_min'
 
-# [[datasets]]
-# collection = 'ECMWF/ERA5_LAND/DAILY_AGGR'
-# parameter = 'total_evaporation_sum'
+[[datasets]]
+collection = 'ECMWF/ERA5_LAND/DAILY_AGGR'
+parameter = 'total_evaporation_sum'
 
-# [[datasets]]
-# collection = 'ECMWF/ERA5_LAND/DAILY_AGGR'
-# parameter = 'runoff_sum'
+[[datasets]]
+collection = 'ECMWF/ERA5_LAND/DAILY_AGGR'
+parameter = 'runoff_sum'
 
-# [[datasets]]
-# collection = 'ECMWF/ERA5_LAND/DAILY_AGGR'
-# parameter = 'evaporation_from_open_water_surfaces_excluding_oceans_min'
+[[datasets]]
+collection = 'ECMWF/ERA5_LAND/DAILY_AGGR'
+parameter = 'evaporation_from_open_water_surfaces_excluding_oceans_min'
 
-# [[datasets]]
-# collection = 'ECMWF/ERA5_LAND/DAILY_AGGR'
-# parameter = 'volumetric_soil_water_layer_1'
+[[datasets]]
+collection = 'ECMWF/ERA5_LAND/DAILY_AGGR'
+parameter = 'volumetric_soil_water_layer_1'
 
-# [[datasets]]
-# collection = 'ECMWF/ERA5_LAND/DAILY_AGGR'
-# parameter = 'soil_temperature_level_1'
+[[datasets]]
+collection = 'ECMWF/ERA5_LAND/DAILY_AGGR'
+parameter = 'soil_temperature_level_1'
 
-# [[datasets]]
-# collection = 'ECMWF/ERA5_LAND/DAILY_AGGR'
-# parameter = 'dewpoint_temperature_2m'
+[[datasets]]
+collection = 'ECMWF/ERA5_LAND/DAILY_AGGR'
+parameter = 'dewpoint_temperature_2m'
 

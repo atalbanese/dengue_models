@@ -14,15 +14,16 @@ import glob
 @click.option('--config-file', type=str, default='preprocessing/gee_config.toml')
 @click.option('--clean', type=bool, default=True)
 @click.option('--auth', type=bool, default=False)
-def main(config_file, clean, auth): 
+@click.option('--merge-only', type=bool, default=False)
+def main(config_file, clean, auth, merge_only): 
     if auth:
         ee.Authenticate(auth_mode='notebook')
     ee.Initialize()
     with open(config_file, 'rb') as f:
         config = tomllib.load(f)
-
-    populate_assets(config)
-    download_all(config)
+    if not merge_only:
+        populate_assets(config)
+        download_all(config)
     merge_all(config)
     parquets = join_all(config)
     if clean:
@@ -75,18 +76,34 @@ def populate_assets(config):
 def generate_requests(config, dataset):
     start_date, end_date = datetime.fromisoformat(config['base']['start_date']), datetime.fromisoformat(config['base']['end_date'])
     requests = list()
+    
     while start_date < end_date:
         requests.append({
             'start_date': start_date.isoformat(),
-            'num_units': config['base']['num_units'], #if config['base']['agg_unit']+start_date < end_date else end_date-start_date
+            'num_units': config['base']['num_units'] if (
+                start_date + relativedelta(**{config['base']['agg_unit']:config['base']['num_units']}) <= end_date
+                ) else (
+                calc_delta(end_date, start_date, config['base']['agg_unit'])
+                ), 
             'collection': dataset['collection'],
             'parameter': dataset['parameter'],
             'time_unit': config['base']['agg_unit'],
             'drive_folder': config['base']['drive_folder']
         })
+
         start_date = start_date + relativedelta(**{config['base']['agg_unit']:config['base']['num_units']})
         
     return requests
+
+def calc_delta(end_date, start_date, unit):
+    mult = {
+        'months': [12, 1, 0],
+        'weeks': [52, 4, 1]
+            }[unit]
+    delta = relativedelta(end_date, start_date)
+    return delta.years*mult[0] + delta.months*mult[1] + delta.weeks*mult[2]
+
+
     
 #Downloading locally has lower computational limits than exporting to google drive so we are gonna run a lot of parallel chunks here
 #If I cant get this to work consistently will switch to drive export then download from there
@@ -96,8 +113,7 @@ def download_all(config):
         requests = generate_requests(config, dataset)
         fulfill_requests(requests)
     monitor_exports(config)
-    #undocumented hack, potential side effects unknown!
-    gdown.download_folder.__globals__['MAX_NUMBER_FILES'] = 200
+    #Just prompt for manual download and then rerun script if over 50 files
     gdown.download_folder(url=config['base']['drive_link'], output=config['base']['save_dir'], quiet=True)
 
 
@@ -287,7 +303,6 @@ def split_job(job):
     return job_1, job_2
 
 if __name__ == '__main__':
-    #global nonsense to accomodate GEE
     assets = dict()
     jobs = deque()
     completed_jobs = list()

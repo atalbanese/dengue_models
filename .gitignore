@@ -9,3 +9,4 @@ metaflow_card_cache*
 *.js
 *test.*
 *gcs*
+preprocessing/metadata.txt
