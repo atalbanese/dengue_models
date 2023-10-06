@@ -8,11 +8,11 @@ import glob
 import os
 
 
-@click.group()
+@click.group(chain=True)
 def cli():
     pass
 
-@cli.command()
+@cli.command('download')
 @click.option('--save-dir', type=str, default='./data/cases/')
 @click.option('--disease', default='DENG')
 @click.option('--start-year', default=2000)
@@ -43,13 +43,14 @@ def consolidate(loc = './data/cases/*BR*', save_dir = './data/cases/processed'):
         if not os.path.exists(save_file):
             pl.read_parquet(os.path.join(f, '*.parquet')).write_parquet(save_file)
 
-@cli.command()
+@cli.command('agg-data')
 @click.option('--pop-data', type=str, default='./data/brazil/muni_pop.xlsx')
 @click.option('--muni-data', type=str, default='./data/brazil/munis/munis_simple.shp')
 @click.option('--disease-data', type=str, default='./data/cases/processed/*.parquet')
-@click.option('--week', type=bool, default=True)
-@click.option('--month', type=bool, default=True)
-@click.option('--day', type=bool, default=True)
+@click.option('--week', is_flag=True, type=bool, default=False)
+@click.option('--month', is_flag=True, type=bool, default=False)
+@click.option('--day', is_flag=True, type=bool, default=False)
+@click.option('--all', is_flag=True, type=bool, default=False)
 @click.option('--save-dir', type=str, default='./data/cases/agged/')
 @click.option('--start-year', default=2001)
 @click.option('--end-year', default=2021)
@@ -60,6 +61,7 @@ def agg_data(
     week,
     month,
     day,
+    all,
     save_dir,
     start_year,
     end_year
@@ -78,6 +80,9 @@ def agg_data(
         .drop_nulls()
         )
     
+    if all:
+        all_years.write_parquet(os.path.join(save_dir, 'all_dengue_cases.parquet'))
+
     if month:
         print('Aggregating months...')
         agg_over_time(all_years, '1mo').write_parquet(os.path.join(save_dir, 'dengue_per_month.parquet'))

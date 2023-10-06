@@ -12,9 +12,9 @@ import glob
 
 @click.command
 @click.option('--config-file', type=str, default='preprocessing/gee_config.toml')
-@click.option('--clean', type=bool, default=True)
-@click.option('--auth', type=bool, default=False)
-@click.option('--merge-only', type=bool, default=False)
+@click.option('--clean', is_flag=True, type=bool, default=True)
+@click.option('--auth', is_flag=True, type=bool, default=False)
+@click.option('--merge-only', is_flag=True, type=bool, default=False)
 def main(config_file, clean, auth, merge_only): 
     if auth:
         ee.Authenticate(auth_mode='notebook')

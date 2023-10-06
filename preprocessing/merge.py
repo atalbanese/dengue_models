@@ -6,7 +6,7 @@ import click
 @click.option('--rs-data', type=str, default='./data/gee_exports/all_parameters_2001-01-01_2021-01-01_months.parquet')
 @click.option('--dengue-data', type=str, default='./data/cases/agged/dengue_per_month.parquet')
 @click.option('--save-loc', type=str, default='./data/all_dengue_data.parquet')
-@click.option('--validate', type=bool, default=True)
+@click.option('--validate', is_flag=True, type=bool, default=True)
 def main(rs_data, dengue_data, save_loc, validate):
     rs = pl.read_parquet(rs_data)
     dengue = pl.read_parquet(dengue_data)
