@@ -130,14 +130,14 @@ def write_metadata(config, dataset):
     with open('./preprocessing/metadata.txt', 'a') as f:
         f.write(
             f'Collection: {dataset["collection"]}\n\
-            Parameter: {dataset["parameter"]}\n\
-            Start Date: {config["base"]["start_date"]}\n\
-            End Date: {config["base"]["end_date"]}\n\
-            Time Units: {config["base"]["agg_unit"]}\n\
-            Date Downloaded: {datetime.utcnow().isoformat()}\n\
-            Population Weighted: True\n\
-            Time aggregation: Median\n\
-            Space aggregation: {config["base"]["reducer"]}\n'
+    Parameter: {dataset["parameter"]}\n\
+    Start Date: {config["base"]["start_date"]}\n\
+    End Date: {config["base"]["end_date"]}\n\
+    Time Units: {config["base"]["agg_unit"]}\n\
+    Date Downloaded: {datetime.utcnow().isoformat()}\n\
+    Population Weighted: True\n\
+    Time aggregation: Median\n\
+    Space aggregation: {config["base"]["reducer"]}\n'
         )
 
 def check_dataset(dataset):
