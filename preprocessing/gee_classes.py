@@ -69,6 +69,27 @@ class GEEDownloader():
     def download_folder(self):
         gdown.download_folder(url=self.config['base']['drive_link'], output=self.config['base']['save_dir'], quiet=True)
 
+    @staticmethod
+    def split_job(job):
+        job = job['args']
+        start_date = job['start_date']
+        num_units = job['num_units']
+
+        #Ensuring we get deep copies of the original job to modify
+        job_1 = {k:v for k, v in job.items()}
+        job_2 = {k:v for k, v in job.items()}
+
+        #split job in half
+        job_1['num_units'] = job['num_units']//2
+
+        #get whatever time remains after job_1
+        job_2['num_units'] = num_units - job_1['num_units']
+
+        #increment start date
+        job_2['start_date'] = (datetime.fromisoformat(start_date) + relativedelta(**{job['time_unit']:job_1['num_units']})).isoformat()
+
+        return job_1, job_2
+
 
 class GEERequestor():
     def __init__(self, config, downloader: GEEDownloader = None):
@@ -196,9 +217,10 @@ class GEERequestor():
     
 class GEESDMRequestor(GEERequestor):
     def __init__(self, config, downloader:GEEDownloader=None):
-        super.__init__(config, downloader=downloader)
+        super().__init__(config, downloader=downloader)
 
         self.add_additional_assets()
+        self.classifier = self.train_classifier()
 
     def add_additional_assets(self):
         #TODO: just make this recs depending on which one was requested
@@ -243,9 +265,9 @@ class GEESDMRequestor(GEERequestor):
                 ).arraySlice(1,1,2
                 ).arrayProject([0]
                 ).arrayFlatten(
-                    [
+                    [   
                         ee.List.sequence(1, dataset['steps']).map(
-                            lambda i : ee.String(ee.Number(i).toInt()).cat(dataset['parameter'])
+                            lambda i : ee.String(ee.Number(i).toInt().format()).cat(dataset['parameter'])
                         )
                     ]
                 )
@@ -255,11 +277,10 @@ class GEESDMRequestor(GEERequestor):
 
         def map_features(feature):
             cur_date = ee.Date.fromYMD(
-                {
-                  'year': feature.get('year'), 
-                  'month': feature.get('month'), 
-                  'day': feature.get('day')
-                })
+                  year = feature.get('year'), 
+                  month = feature.get('month'), 
+                  day =  feature.get('day')
+                )
             back_date = cur_date.advance(-self.config['temporal_sdm']['lookback_window'],'day' )
 
             return feature.set(
@@ -274,20 +295,78 @@ class GEESDMRequestor(GEERequestor):
 
 
     def get_training_data(self):
-        pass
+        return (
+            self.assets['all_points']
+            .filter('year <= 2022')
+            .map(lambda f: (
+                self.assemble_data(f.get('back_date'), f.get('date'))
+                .sampleRegions(collection = ee.FeatureCollection([f]), scale=4500)
+                .first()
+            ), True)
+        )
 
+    def create_exports(self):
+        self.generate_requests({
+            'collection': 'temporal_sdm',
+            'parameter': 'temporal_sdm'
+        })
     def train_classifier(self):
-        pass
+        return (
+            ee.Classifier.amnhMaxent(
+                randomTestPoints = 25,
+                seed=42
+            ).train(
+                features = self.get_training_data(),
+                classProperty = 'presence',
+                inputProperties = self.assemble_data(ee.Date('2020-01-01'), ee.Date('2020-03-01')).bandNames()
+            )
+        )
 
     def export_over_time(self, args_dict, retries=0):
-        return super().export_over_time(args_dict, retries)
+        time_unit = args_dict["time_unit"][:-1]
 
+        def time_mapper(n):
+            base_date = ee.Date(args_dict['start_date']).advance(n, time_unit)
+            return self.agg_to_munis(
+                self.assemble_data(
+                    base_date.advance(-self.config['temporal_sdm']['lookback_window'], 'day'),
+                    base_date
+                ).classify(self.classifier
+                ).select('probability'
+                ).addBands(
+                    self.assets['population'].filter(ee.Filter.eq('year', base_date.get('year'))).first().unitScale(0, 21171)
+                )
+            ).map(lambda f : f.set(
+                {
+                'end_date' : base_date.format('YYYY-MM-dd'),
+                'start_date' : base_date.advance(-self.config['temporal_sdm']['lookback_window'], 'day').format('YYYY-MM-dd')
+                }
+            ))
+        
+        predict_data = ee.FeatureCollection(
+            ee.List.sequence(0, args_dict['num_units']-1)
+            .map(time_mapper)
+        ).flatten()
+
+        self.downloader.add_job({
+        'job': ee.batch.Export.table.toDrive(
+                collection=predict_data,
+                fileFormat='CSV',
+                selectors = ['CD_MUN', 'median', 'start_date', 'end_date'],
+                folder=args_dict['drive_folder'],
+                description=f'{args_dict["collection"]}_{args_dict["start_date"]}'
+            ),
+        'retries': retries,
+        'args': args_dict,
+        'owner':self
+        })
     
 if __name__ == '__main__':
+    #ee.Authenticate(auth_mode='notebook')
     ee.Initialize()
     with open('preprocessing/gee_config.toml', 'rb') as f:
         CFG = tomllib.load(f)
-    test = GEERequestor(CFG)
+    test = GEESDMRequestor(CFG)
     test.create_exports()
     test.downloader.run_exports()
     test.downloader.download_folder()

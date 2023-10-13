@@ -11,7 +11,7 @@ num_units = 72
 drive_folder = 'dengue_export_test'
 drive_link = 'https://drive.google.com/drive/folders/18_-oyZdy2lacadC6EA_89KX08LzUassE'
 save_dir = './data/gee_exports_test'
-retries = 2
+retries = 0
 
 [temporal_sdm]
 lookback_window = 60
