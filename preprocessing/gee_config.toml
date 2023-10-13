@@ -16,6 +16,9 @@ retries = 2
 [temporal_sdm]
 lookback_window = 60
 use_pop = true
+#aegypti, albopictus, or both
+species = 'albopictus'
+num_absence_points = 400
 
 [[sdm_datasets]]
 collection = 'ECMWF/ERA5_LAND/DAILY_AGGR'

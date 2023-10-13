@@ -201,10 +201,56 @@ class GEESDMRequestor(GEERequestor):
         self.add_additional_assets()
 
     def add_additional_assets(self):
-        self.assets['albo_recs'] = ee.FeatureCollection("projects/ee-dengue-proof-of-concept/assets/albo_gbif_date_filtered")
-        self.assets['aeg_recs'] = ee.FeatureCollection("projects/ee-dengue-proof-of-concept/assets/aegypti_gbif_date_filtered")
-        self.assets['absence_recs'] = ee.FeatureCollection("projects/ee-dengue-proof-of-concept/assets/dated_absence")
+        #TODO: just make this recs depending on which one was requested
+        #Could also just combine into a 'dengue species SDM'
+        presence_recs = {
+            'albopictus': self.fix_recs(ee.FeatureCollection("projects/ee-dengue-proof-of-concept/assets/albo_gbif_date_filtered"), 1),
+            'aegypti': self.fix_recs(ee.FeatureCollection("projects/ee-dengue-proof-of-concept/assets/aegypti_gbif_date_filtered"), 1),
+            'both': (
+                self.fix_recs(ee.FeatureCollection("projects/ee-dengue-proof-of-concept/assets/albo_gbif_date_filtered"), 1).merge(
+                     self.fix_recs(ee.FeatureCollection("projects/ee-dengue-proof-of-concept/assets/aegypti_gbif_date_filtered"), 1)
+                )
+            )
+        }[self.config['temporal_sdm']['species']]
+        #We have 8000 premade date pseudo-absence points, we only need a small percent of them
+        absence_percent = self.config['temporal_sdm']['num_absence_points']/8000
+        absence_recs = self.fix_recs(ee.FeatureCollection("projects/ee-dengue-proof-of-concept/assets/dated_absence"), 0).randomColumn().filter(f'random <= {absence_percent}')
 
+        self.assets['all_points'] = presence_recs.merge(absence_recs)
+
+    def assemble_data(self, start_date, end_date):
+        #TODO: Add in population flag
+
+        return (
+            ee.ImageCollection([self.sample_collection(start_date, end_date, dset) for dset in self.config['sdm_datasets']]
+            ).toBands(
+            ).clip(self.assets['bbox'])
+        )
+
+    def sample_collection(self, start_date, end_date, dataset):
+        #Samples a histogram with set breaks then does some array magic to get each bin as its own image
+        return (ee.ImageCollection(dataset['collection']
+                ).filter(
+                    ee.Filter.date(start_date,end_date)
+                ).select(dataset['parameter']
+                ).map(self.clip_to_munis
+                ).reduce(
+                    ee.Reducer.fixedHistogram(
+                        min=dataset['min'],
+                        max=dataset['max'],
+                        steps=dataset['steps']
+                    )
+                ).arraySlice(1,1,2
+                ).arrayProject([0]
+                ).arrayFlatten(
+                    [
+                        ee.List.sequence(1, dataset['steps']).map(
+                            lambda i : ee.String(ee.Number(i).toInt()).cat(dataset['parameter'])
+                        )
+                    ]
+                )
+            )
+        
     def fix_recs(self, in_points, presence_num):
 
         def map_features(feature):
