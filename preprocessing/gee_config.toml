@@ -11,13 +11,14 @@ num_units = 72
 drive_folder = 'dengue_export_test'
 drive_link = 'https://drive.google.com/drive/folders/18_-oyZdy2lacadC6EA_89KX08LzUassE'
 save_dir = './data/gee_exports_test'
-retries = 0
+retries = 1
 
 [temporal_sdm]
 lookback_window = 60
+#still need to implement
 use_pop = true
 #aegypti, albopictus, or both
-species = 'albopictus'
+species = 'both'
 num_absence_points = 400
 
 [[sdm_datasets]]

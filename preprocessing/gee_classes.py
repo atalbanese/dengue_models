@@ -12,12 +12,28 @@ import glob
 
 
 class GEEDownloader():
-    def __init__(self, config):
+    def __init__(self, config, merge_only=False):
         self.config = config
         self.jobs = deque()
         self.requested_jobs = list()
         self.completed_jobs = list()
         self.failed_jobs = list()
+        self.merge_only = merge_only
+
+
+    @property
+    def requested_datasets(self):
+        out = set()
+        if not self.merge_only:
+            for job in self.requested_jobs:
+                out.add((job['collection'], job['parameter']))
+        else:
+            for job in self.config['datasets']:
+                out.add((job['collection'], job['parameter']))
+            if 'temporal_sdm' in self.config:
+                out.add(('temporal_sdm',  f'temporal_sdm_{self.config["temporal_sdm"]["species"]}'))
+        return out
+         
 
     def add_job(self, job):
         self.jobs.append(job)
@@ -66,8 +82,55 @@ class GEEDownloader():
             print(f'TOTAL FAILURE: {job}')
             self.failed_jobs.append(job)
 
+    def check_dataset(self, parameter):
+        for job in self.failed_jobs:
+            if job['args']['parameter'] == parameter:
+                return False
+        else:
+            if len(glob.glob(os.path.join(self.config['base']['save_dir'], f'{parameter}_*.csv'))) == 0:
+                return False
+        return True
+
     def download_folder(self):
         gdown.download_folder(url=self.config['base']['drive_link'], output=self.config['base']['save_dir'], quiet=True)
+
+    def merge_all(self):
+        for dataset in self.requested_datasets:
+            if self.check_dataset(dataset[1]):
+                self.merge_downloads(dataset[1])
+                self.write_metadata(dataset)
+            else:
+                print(f'{dataset} failed to export completely. You may need to adjust the num_units and retries parameters')
+        return True
+    
+    def merge_downloads(self, parameter):
+        (
+            pl.read_csv(os.path.join(self.config["base"]["save_dir"], f'{parameter}_*.csv'), try_parse_dates=True)
+            .rename({'median': parameter,
+                    'CD_MUN': 'muni_id'})
+            .sort(['muni_id', 'start_date'])
+            .fill_null(-999)
+            #Filter out munis that are just lakes
+            .filter(pl.col('muni_id')!= 430000)
+            .with_columns((pl.col('start_date').str.to_date('%Y-%m-%d'),pl.col('end_date').str.to_date('%Y-%m-%d')))
+            .write_parquet(os.path.join(self.config["base"]["save_dir"], f'{parameter}_{self.config["base"]["start_date"]}_{self.config["base"]["end_date"]}.parquet'))
+        )
+        pass
+    
+    def write_metadata(self, dataset):
+        with open('./preprocessing/metadata.txt', 'a') as f:
+            f.write(
+                f'Collection: {dataset[0]}\n\
+        Parameter: {dataset[1]}\n\
+        Start Date: {self.config["base"]["start_date"]}\n\
+        End Date: {self.config["base"]["end_date"]}\n\
+        Time Units: {self.config["base"]["agg_unit"]}\n\
+        Date Downloaded: {datetime.utcnow().isoformat()}\n\
+        Population Weighted: True\n\
+        Time aggregation: Median\n\
+        Space aggregation: {self.config["base"]["reducer"]}\n'
+        )
+
 
     @staticmethod
     def split_job(job):
@@ -308,7 +371,7 @@ class GEESDMRequestor(GEERequestor):
     def create_exports(self):
         self.generate_requests({
             'collection': 'temporal_sdm',
-            'parameter': 'temporal_sdm'
+            'parameter': f'temporal_sdm_{self.config["temporal_sdm"]["species"]}'
         })
     def train_classifier(self):
         return (
@@ -354,7 +417,7 @@ class GEESDMRequestor(GEERequestor):
                 fileFormat='CSV',
                 selectors = ['CD_MUN', 'median', 'start_date', 'end_date'],
                 folder=args_dict['drive_folder'],
-                description=f'{args_dict["collection"]}_{args_dict["start_date"]}'
+                description=f'{args_dict["parameter"]}_{args_dict["start_date"]}'
             ),
         'retries': retries,
         'args': args_dict,

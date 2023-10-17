@@ -78,6 +78,12 @@ def agg_data(
         load_parquets(loc=disease_data, start_year=start_year)
         .join(munis, left_on='ID_MUNICIP', right_on='CD_MUN', how='left')
         .drop_nulls()
+        .with_columns(pl.col('ID_MUNICIP').str.slice(offset=0,length=6).cast(pl.Int64))
+        .sort('DT_NOTIFIC')
+        .rename({
+                'DT_NOTIFIC': 'start_date',
+                'ID_MUNICIP': 'muni_id'
+        }).with_columns(pl.col('start_date').alias('month').dt.month())
         )
     
     if all:
@@ -170,13 +176,13 @@ def load_parquets(start_year = 2001, loc = './data/cases/processed/*.parquet'):
 
 def add_blanks(group_df:pl.DataFrame):
 
-    missing_ids = set(muni_pop.unique('ID_MUNICIP').select('ID_MUNICIP').to_series()) - set(group_df.unique('ID_MUNICIP').select('ID_MUNICIP').to_series())
-    cur_date = group_df.select('DT_NOTIFIC').to_series()[0]
+    missing_ids = set(muni_pop.unique('muni_id').select('muni_id').to_series()) - set(group_df.unique('muni_id').select('muni_id').to_series())
+    cur_date = group_df.select('start_date').to_series()[0]
     cur_year = group_df.select('year').to_series()[0]
 
     to_append = {
-        'ID_MUNICIP': list(missing_ids),
-        'DT_NOTIFIC': [cur_date] * len(missing_ids),
+        'muni_id': list(missing_ids),
+        'start_date': [cur_date] * len(missing_ids),
         'year': [cur_year] * len(missing_ids),
         'cases_per_100k': [0.0] * len(missing_ids),
         'count': [0] * len(missing_ids)
@@ -189,16 +195,16 @@ def add_blanks(group_df:pl.DataFrame):
                         'count': pl.UInt32,
                     }
                 )
-                .join(muni_pop, on=['ID_MUNICIP', 'year'], how='left')
-                .join(munis, left_on='ID_MUNICIP', right_on='CD_MUN', how='left')
+                .join(muni_pop, on=['muni_id', 'year'], how='left')
+                .join(munis, left_on='muni_id', right_on='CD_MUN', how='left')
                 .select(group_df.columns)
             )
         )
 
 def agg_over_time(df: pl.DataFrame, period):
     return (df
-            .sort('DT_NOTIFIC')
-            .groupby_dynamic('DT_NOTIFIC' , every=period, by='ID_MUNICIP').agg([
+            .sort('start_date')
+            .groupby_dynamic('start_date' , every=period, by='muni_id').agg([
                 pl.count(),
                 pl.first('x_centroid'),
                 pl.first('y_centroid'),
@@ -208,7 +214,7 @@ def agg_over_time(df: pl.DataFrame, period):
             ])
             .with_columns(
                 (pl.col('count')/(pl.col('pop')/100000)).alias('cases_per_100k'))
-            .groupby('DT_NOTIFIC')
+            .groupby('start_date')
             .apply(
                 add_blanks
             )
