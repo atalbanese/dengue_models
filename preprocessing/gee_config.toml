@@ -1,15 +1,16 @@
 [base]
 crs = 'EPSG:4326'
 ##If you are getting 'computed image too large' error make this number larger
-scale = 3000
+scale = 1000
 reducer = 'median'
 munis = 'projects/ee-dengue-proof-of-concept/assets/munis_simple'
 munis_1 = 'projects/ee-dengue-proof-of-concept/assets/munis_simple_1'
 munis_2 = 'projects/ee-dengue-proof-of-concept/assets/munis_simple_2'
 start_date = '2001-01-01'
-end_date = '2003-01-01'
+end_date = '2021-01-01'
 agg_unit = 'months'
-num_units = 24
+#24 months works well for sdm, 72 works for agg
+num_units = 72
 drive_folder = 'dengue_export_test'
 drive_link = 'https://drive.google.com/drive/folders/18_-oyZdy2lacadC6EA_89KX08LzUassE'
 save_dir = './data/gee_exports_test'
@@ -20,7 +21,7 @@ lookback_window = 60
 #still need to implement
 use_pop = true
 #aegypti, albopictus, or both
-species = 'both'
+species = 'aegypti'
 num_absence_points = 200
 
 [[sdm_datasets]]
@@ -42,43 +43,43 @@ steps = 10
 collection = 'ECMWF/ERA5_LAND/DAILY_AGGR'
 parameter = 'total_precipitation_min'
 
-# [[datasets]]
-# collection = 'MODIS/MOD09GA_006_EVI'
-# parameter = 'EVI'
+[[datasets]]
+collection = 'MODIS/MOD09GA_006_EVI'
+parameter = 'EVI'
 
-# [[datasets]]
-# collection = 'ECMWF/ERA5_LAND/DAILY_AGGR'
-# parameter = 'temperature_2m'
+[[datasets]]
+collection = 'ECMWF/ERA5_LAND/DAILY_AGGR'
+parameter = 'temperature_2m'
 
-# [[datasets]]
-# collection = 'ECMWF/ERA5_LAND/DAILY_AGGR'
-# parameter = 'total_precipitation_sum'
+[[datasets]]
+collection = 'ECMWF/ERA5_LAND/DAILY_AGGR'
+parameter = 'total_precipitation_sum'
 
-# [[datasets]]
-# collection = 'ECMWF/ERA5_LAND/DAILY_AGGR'
-# parameter = 'surface_runoff_min'
+[[datasets]]
+collection = 'ECMWF/ERA5_LAND/DAILY_AGGR'
+parameter = 'surface_runoff_min'
 
-# [[datasets]]
-# collection = 'ECMWF/ERA5_LAND/DAILY_AGGR'
-# parameter = 'total_evaporation_sum'
+[[datasets]]
+collection = 'ECMWF/ERA5_LAND/DAILY_AGGR'
+parameter = 'total_evaporation_sum'
 
-# [[datasets]]
-# collection = 'ECMWF/ERA5_LAND/DAILY_AGGR'
-# parameter = 'runoff_sum'
+[[datasets]]
+collection = 'ECMWF/ERA5_LAND/DAILY_AGGR'
+parameter = 'runoff_sum'
 
-# [[datasets]]
-# collection = 'ECMWF/ERA5_LAND/DAILY_AGGR'
-# parameter = 'evaporation_from_open_water_surfaces_excluding_oceans_min'
+[[datasets]]
+collection = 'ECMWF/ERA5_LAND/DAILY_AGGR'
+parameter = 'evaporation_from_open_water_surfaces_excluding_oceans_min'
 
-# [[datasets]]
-# collection = 'ECMWF/ERA5_LAND/DAILY_AGGR'
-# parameter = 'volumetric_soil_water_layer_1'
+[[datasets]]
+collection = 'ECMWF/ERA5_LAND/DAILY_AGGR'
+parameter = 'volumetric_soil_water_layer_1'
 
-# [[datasets]]
-# collection = 'ECMWF/ERA5_LAND/DAILY_AGGR'
-# parameter = 'soil_temperature_level_1'
+[[datasets]]
+collection = 'ECMWF/ERA5_LAND/DAILY_AGGR'
+parameter = 'soil_temperature_level_1'
 
-# [[datasets]]
-# collection = 'ECMWF/ERA5_LAND/DAILY_AGGR'
-# parameter = 'dewpoint_temperature_2m'
+[[datasets]]
+collection = 'ECMWF/ERA5_LAND/DAILY_AGGR'
+parameter = 'dewpoint_temperature_2m'
 

@@ -13,6 +13,7 @@ import polars as pl
 import glob
 
 
+
 @click.command
 @click.option('--config-file', type=str, default='preprocessing/gee_config.toml')
 @click.option('--clean', is_flag=True, type=bool, default=False)
@@ -21,6 +22,10 @@ import glob
 @click.option('--sdm', is_flag=True, type=bool, default=False)
 @click.option('--dynamic', is_flag=True, type=bool, default=False)
 def main(config_file, clean, auth, merge_only, sdm, dynamic): 
+    #TODO: dynamic, sdm, and merging should probably be split
+    #TODO: could request all 3 sdms at once without generating too many files
+    #TODO: dynamic and sdm need different scales
+    #TODO: test combined reducer to get mean, median, minmax var, std, all at same time
     if auth:
         ee.Authenticate(auth_mode='notebook')
     ee.Initialize()
@@ -58,7 +63,7 @@ def join_all(config):
         to_read = all_parquets[0]
         start_index=1
     base_df = pl.read_parquet(to_read)
-    if len(all_parquets)>1:
+    if len(all_parquets)>0:
         for f in all_parquets[start_index:]:
             suffix = re.search(pattern, f)[0]
             base_df = base_df.join(pl.read_parquet(f), on=['muni_id', 'end_date'], suffix=f'_{suffix}')
