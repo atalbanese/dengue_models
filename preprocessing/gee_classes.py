@@ -64,7 +64,7 @@ class GEEDownloader():
                 #failed_jobs.append(job)
                 #print(f'FAILED: {job.status()}')
             else:
-                print(f'NOT SURE: {job.status()}')
+                print(f'NOT SURE: {state}')
             running = len(self.jobs) > 0
             time.sleep(sleep_time)
         return len(self.failed_jobs) == 0  
@@ -173,6 +173,7 @@ class GEERequestor():
             [-76.58124317412843, -34.761991448401204],
             [-29.82343067412843, -34.761991448401204],
             [-29.82343067412843, 6.639971446351328]]])
+        self.assets['munis_simple'] = ee.FeatureCollection(self.config['base']['munis']).randomColumn()
         self.assets['munis_simple_1'], self.assets['munis_simple_2'] = (ee.FeatureCollection(self.config['base']['munis_1']), 
                                                                         ee.FeatureCollection(self.config['base']['munis_2']))
         self.assets['reducer'] = {'median': ee.Reducer.median(),
@@ -243,29 +244,65 @@ class GEERequestor():
                 folder=args_dict['drive_folder'],
                 description=f'{args_dict["parameter"]}_{args_dict["start_date"]}'
             ),
+        'collection': args_dict['collection'],
+        'parameter': args_dict['parameter'],
         'retries': retries,
         'args': args_dict,
         'owner':self
         })
     
+    # def get_muni_aggregator(self):
+    #     @staticmethod
+    #     def agg_to_munis(img):
+    #         img_stats_1 =  img.reduceRegions(**{
+    #             'collection': self.assets['munis_simple_1'],
+    #             'reducer':  self.assets['reducer'].splitWeights(),
+    #             'scale': self.assets['scale'],  # meters
+    #             'crs': self.assets['crs'],
+    #         })
+
+    #         img_stats_2 =  img.reduceRegions(**{
+    #             'collection': self.assets['munis_simple_2'],
+    #             'reducer': self.assets['reducer'].splitWeights(),
+    #             'scale': self.assets['scale'],
+    #             'crs': self.assets['crs'],
+    #         })
+
+    #         return img_stats_1.merge(img_stats_2)
+    #     return agg_to_munis
+
+    # def get_muni_aggregator(self):
+    #     @staticmethod
+    #     def agg_to_munis(img):
+
+    #         return self.assets['munis_simple'].map(lambda f: ee.Feature(f.geometry(), img.reduceRegion(
+    #             reducer = self.assets['reducer'].splitWeights(),
+    #             geometry = f.geometry(),
+    #             scale = self.assets['scale'],
+    #             crs = self.assets['crs'],
+    #             bestEffort = True
+    #         ).combine(f.toDictionary())))
+
+    #     return agg_to_munis
     def get_muni_aggregator(self):
+        num_splits = 4
         @staticmethod
         def agg_to_munis(img):
-            img_stats_1 =  img.reduceRegions(**{
-                'collection': self.assets['munis_simple_1'],
+            cols = []
+            for i in range(num_splits):
+                lower_bound = i/num_splits
+                upper_bound = (i+1)/num_splits
+
+                cols.append(img.reduceRegions(**{
+                'collection': self.assets['munis_simple'].filter(ee.Filter([ee.Filter.gte('random', lower_bound), ee.Filter.lt('random', upper_bound)])),
                 'reducer':  self.assets['reducer'].splitWeights(),
                 'scale': self.assets['scale'],  # meters
                 'crs': self.assets['crs'],
-            })
+                }))
 
-            img_stats_2 =  img.reduceRegions(**{
-                'collection': self.assets['munis_simple_2'],
-                'reducer': self.assets['reducer'].splitWeights(),
-                'scale': self.assets['scale'],
-                'crs': self.assets['crs'],
-            })
 
-            return img_stats_1.merge(img_stats_2)
+            return ee.FeatureCollection(cols).flatten()
+
         return agg_to_munis
     
 
@@ -363,7 +400,7 @@ class GEESDMRequestor(GEERequestor):
             .filter('year <= 2022')
             .map(lambda f: (
                 self.assemble_data(f.get('back_date'), f.get('date'))
-                .sampleRegions(collection = ee.FeatureCollection([f]), scale=4500)
+                .sampleRegions(collection = ee.FeatureCollection([f]), scale=3000)
                 .first()
             ), True)
         )
@@ -420,6 +457,8 @@ class GEESDMRequestor(GEERequestor):
                 description=f'{args_dict["parameter"]}_{args_dict["start_date"]}'
             ),
         'retries': retries,
+        'collection': args_dict['collection'],
+        'parameter': args_dict['parameter'],
         'args': args_dict,
         'owner':self
         })

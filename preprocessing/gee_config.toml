@@ -1,17 +1,19 @@
 [base]
 crs = 'EPSG:4326'
-scale = 1000
+##If you are getting 'computed image too large' error make this number larger
+scale = 3000
 reducer = 'median'
+munis = 'projects/ee-dengue-proof-of-concept/assets/munis_simple'
 munis_1 = 'projects/ee-dengue-proof-of-concept/assets/munis_simple_1'
 munis_2 = 'projects/ee-dengue-proof-of-concept/assets/munis_simple_2'
 start_date = '2001-01-01'
 end_date = '2003-01-01'
 agg_unit = 'months'
-num_units = 72
+num_units = 24
 drive_folder = 'dengue_export_test'
 drive_link = 'https://drive.google.com/drive/folders/18_-oyZdy2lacadC6EA_89KX08LzUassE'
 save_dir = './data/gee_exports_test'
-retries = 1
+retries = 2
 
 [temporal_sdm]
 lookback_window = 60
@@ -19,7 +21,7 @@ lookback_window = 60
 use_pop = true
 #aegypti, albopictus, or both
 species = 'both'
-num_absence_points = 400
+num_absence_points = 200
 
 [[sdm_datasets]]
 collection = 'ECMWF/ERA5_LAND/DAILY_AGGR'
