@@ -26,21 +26,21 @@ def main(config_file, clean, auth, merge_only, sdm, dynamic):
     ee.Initialize()
     with open(config_file, 'rb') as f:
         config = tomllib.load(f)
-    # downloader = GEEDownloader(config, merge_only=merge_only)
-    # if not merge_only:
+    downloader = GEEDownloader(config, merge_only=merge_only)
+    if not merge_only:
         
-    #     dynamic_req = GEERequestor(config, downloader=downloader)
-    #     sdm_req = GEESDMRequestor(config, downloader=downloader)
-    #     if sdm:
-    #         sdm_req = GEESDMRequestor(config, downloader=downloader)
-    #         sdm_req.create_exports()
-    #     if dynamic:
-    #         dynamic_req = GEERequestor(config, downloader=downloader)
-    #         dynamic_req.create_exports()
-    #     downloader.run_exports()
-    #     downloader.download_folder()
+        dynamic_req = GEERequestor(config, downloader=downloader)
+        sdm_req = GEESDMRequestor(config, downloader=downloader)
+        if sdm:
+            sdm_req = GEESDMRequestor(config, downloader=downloader)
+            sdm_req.create_exports()
+        if dynamic:
+            dynamic_req = GEERequestor(config, downloader=downloader)
+            dynamic_req.create_exports()
+        downloader.run_exports()
+        downloader.download_folder()
 
-    # downloader.merge_all()
+    downloader.merge_all()
     parquets = join_all(config)
     if clean:
         cleanup(config, parquets)
