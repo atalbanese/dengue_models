@@ -3,7 +3,8 @@ from metaflow import Metaflow
 import pandas as pd
 import numpy as np
 from gluonts.model.forecast import SampleForecast, QuantileForecast
-from gluonts.mx.model.forecast import DistributionForecast
+from gluonts.mx.model.forecast import DistributionForecast as mxDF
+from gluonts.torch.model.forecast import DistributionForecast as tDF
 import polars as pl
 
 class DBBuilder():
@@ -110,7 +111,7 @@ class DBBuilder():
                 means = sample_forecast.mean
             elif isinstance(sample_forecast, SampleForecast):
                 means = sample_forecast.samples.mean(axis=0)
-            elif isinstance(sample_forecast, DistributionForecast):
+            elif isinstance(sample_forecast, mxDF) or isinstance(sample_forecast, tDF):
                 means = sample_forecast.mean
             #stds = sample_forecast.samples.std(axis=0)
             start_date = dates[0]
