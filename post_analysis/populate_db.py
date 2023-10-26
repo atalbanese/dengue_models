@@ -134,6 +134,7 @@ class DBBuilder():
         except BaseException as e:
             print(e)
             print(sample_forecast)
+            print(vars(sample_forecast))
 
     def save_table(self, table_name, out_loc):
         self.con.execute(f'SELECT * from {table_name}').pl().write_parquet(out_loc)
