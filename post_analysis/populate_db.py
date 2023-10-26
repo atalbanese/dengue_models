@@ -64,6 +64,7 @@ class DBBuilder():
     def find_all_data(self):
         #Find all metaflow data artifacts from model runs
         flows = Metaflow().flows
+        print(flows)
         for flow in flows:
             for run in flow:
                 if run.data != None:
