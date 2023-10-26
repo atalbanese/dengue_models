@@ -51,6 +51,7 @@ class DBBuilder():
         self.con.sql("""CREATE TABLE predictions
                      (
                         model_id BIGINT,
+                        task_id UTINYINT,
                         muni_id VARCHAR,
                         start_date DATETIME,
                         predict_date DATETIME,
@@ -64,35 +65,42 @@ class DBBuilder():
     def find_all_data(self):
         #Find all metaflow data artifacts from model runs
         flows = Metaflow().flows
-        print(flows)
+        # print(flows)
+        # for flow in flows:
+        #     print(flow)
+        #     for run in flow:
+        #         if run.data != None:
+        #             for entry in run.data._artifacts.items():
+        #                 self.handle_data_artifact(entry)
         for flow in flows:
-            print(flow)
             for run in flow:
-                if run.data != None:
-                    for entry in run.data._artifacts.items():
-                        self.handle_data_artifact(entry)
+                for step in run.steps():
+                    for task in step.tasks():
+                        for entry in task.data._artifacts.items():
+                            self.handle_data_artifact(entry)
     
     def handle_data_artifact(self, entry):
         key, artifact = entry
         run_id = artifact._object['run_number']
+        task_id = artifact._object['task_id']
         if key in self.handler_dict:
-            self.handler_dict[key](artifact, run_id)
+            self.handler_dict[key](artifact, run_id, task_id)
 
-    def handle_config(self, artifact, run_id):
+    def handle_config(self, artifact, run_id, task_id):
         cfg = artifact.data
 
-    def handle_item_metrics(self, artifact, run_id):
+    def handle_item_metrics(self, artifact, run_id, task_id):
         pass
-    def handle_agg_metrics(self, artifact, run_id):
+    def handle_agg_metrics(self, artifact, run_id, task_id):
         pass
     def handle_actual_values(self):
         pass
 
-    def handle_predictions(self, artifact, run_id):
+    def handle_predictions(self, artifact, run_id, task_id):
         for forecast in artifact.data:
-            self.handle_prediction(forecast, run_id)
+            self.handle_prediction(forecast, run_id, task_id)
             
-    def handle_prediction(self, sample_forecast, run_id):
+    def handle_prediction(self, sample_forecast, run_id, task_id):
         dates = sample_forecast._index.start_time
         period = sample_forecast._index.freqstr
         muni_id = sample_forecast.item_id
@@ -107,6 +115,7 @@ class DBBuilder():
         df = pd.DataFrame.from_dict(
             {
                 'model_id': pd.Series([int(run_id)]*num_entries, dtype=np.int64),
+                'task_id': pd.Series([int(task_id)]*num_entries, dtype=np.int16),
                 'muni_id' : pd.Series([muni_id]*num_entries, dtype='string'),
                 'start_date': pd.Series([start_date]*num_entries),
                 'predict_date': dates,
