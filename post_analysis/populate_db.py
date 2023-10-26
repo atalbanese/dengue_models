@@ -66,6 +66,7 @@ class DBBuilder():
         flows = Metaflow().flows
         print(flows)
         for flow in flows:
+            print(flow)
             for run in flow:
                 if run.data != None:
                     for entry in run.data._artifacts.items():
