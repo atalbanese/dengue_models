@@ -2,7 +2,7 @@ import duckdb
 from metaflow import Metaflow
 import pandas as pd
 import numpy as np
-
+from gluonts.model.forecast import SampleForecast, QuantileForecast
 class DBBuilder():
     def __init__(self, db_loc = ':memory:'):
         self.handler_dict = {
@@ -54,8 +54,7 @@ class DBBuilder():
                         predict_date DATETIME,
                         step UTINYINT,
                         time_unit VARCHAR,
-                        mean DOUBLE,
-                        std DOUBLE
+                        mean DOUBLE
                      )
                     """)
         
@@ -88,13 +87,16 @@ class DBBuilder():
     def handle_predictions(self, artifact, run_id):
         for forecast in artifact.data:
             self.handle_prediction(forecast, run_id)
-
+            
     def handle_prediction(self, sample_forecast, run_id):
         dates = sample_forecast._index.start_time
         period = sample_forecast._index.freqstr
         muni_id = sample_forecast.item_id
-        means = sample_forecast.samples.mean(axis=0)
-        stds = sample_forecast.samples.std(axis=0)
+        if isinstance(sample_forecast, QuantileForecast):
+            means = sample_forecast.mean
+        elif isinstance(sample_forecast, SampleForecast):
+            means = sample_forecast.samples.mean(axis=0)
+        #stds = sample_forecast.samples.std(axis=0)
         start_date = dates[0]
         num_entries = len(dates)
 
@@ -107,7 +109,7 @@ class DBBuilder():
                 'step': pd.Series(list(range(num_entries)), dtype=np.int8),
                 'time_unit' : pd.Series([period]*num_entries, dtype='string'),
                 'mean' : pd.Series(means, dtype=np.float32),
-                'std' : pd.Series(stds, dtype=np.float32),          
+                #'std' : pd.Series(stds, dtype=np.float32),          
              })
         #self.con.append('predictions', df)
         self.con.execute('INSERT INTO predictions SELECT * from df')
