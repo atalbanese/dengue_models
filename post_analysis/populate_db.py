@@ -3,6 +3,8 @@ from metaflow import Metaflow
 import pandas as pd
 import numpy as np
 from gluonts.model.forecast import SampleForecast, QuantileForecast
+import polars as pl
+
 class DBBuilder():
     def __init__(self, db_loc = ':memory:'):
         self.handler_dict = {
@@ -114,6 +116,10 @@ class DBBuilder():
         #self.con.append('predictions', df)
         self.con.execute('INSERT INTO predictions SELECT * from df')
 
+    def save_table(self, table_name, out_loc):
+        self.con.execute(f'SELECT * from {table_name}').pl().write_parquet(out_loc)
+
+
 
 
         
@@ -123,6 +129,7 @@ class DBBuilder():
 
 if __name__ == '__main__':
     test = DBBuilder()
+    test.save_table('predictions', 'predictions.parquet')
     print(test.con.sql("SELECT * FROM predictions"))
 
     #import toml
