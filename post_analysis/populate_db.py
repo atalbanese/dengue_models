@@ -101,31 +101,35 @@ class DBBuilder():
             self.handle_prediction(forecast, run_id, task_id)
             
     def handle_prediction(self, sample_forecast, run_id, task_id):
-        dates = sample_forecast._index.start_time
-        period = sample_forecast._index.freqstr
-        muni_id = sample_forecast.item_id
-        if isinstance(sample_forecast, QuantileForecast):
-            means = sample_forecast.mean
-        elif isinstance(sample_forecast, SampleForecast):
-            means = sample_forecast.samples.mean(axis=0)
-        #stds = sample_forecast.samples.std(axis=0)
-        start_date = dates[0]
-        num_entries = len(dates)
+        try:
+            dates = sample_forecast._index.start_time
+            period = sample_forecast._index.freqstr
+            muni_id = sample_forecast.item_id
+            if isinstance(sample_forecast, QuantileForecast):
+                means = sample_forecast.mean
+            elif isinstance(sample_forecast, SampleForecast):
+                means = sample_forecast.samples.mean(axis=0)
+            #stds = sample_forecast.samples.std(axis=0)
+            start_date = dates[0]
+            num_entries = len(dates)
 
-        df = pd.DataFrame.from_dict(
-            {
-                'model_id': pd.Series([int(run_id)]*num_entries, dtype=np.int64),
-                'task_id': pd.Series([int(task_id)]*num_entries, dtype=np.int16),
-                'muni_id' : pd.Series([muni_id]*num_entries, dtype='string'),
-                'start_date': pd.Series([start_date]*num_entries),
-                'predict_date': dates,
-                'step': pd.Series(list(range(num_entries)), dtype=np.int8),
-                'time_unit' : pd.Series([period]*num_entries, dtype='string'),
-                'mean' : pd.Series(means, dtype=np.float32),
-                #'std' : pd.Series(stds, dtype=np.float32),          
-             })
-        #self.con.append('predictions', df)
-        self.con.execute('INSERT INTO predictions SELECT * from df')
+            df = pd.DataFrame.from_dict(
+                {
+                    'model_id': pd.Series([int(run_id)]*num_entries, dtype=np.int64),
+                    'task_id': pd.Series([int(task_id)]*num_entries, dtype=np.int16),
+                    'muni_id' : pd.Series([muni_id]*num_entries, dtype='string'),
+                    'start_date': pd.Series([start_date]*num_entries),
+                    'predict_date': dates,
+                    'step': pd.Series(list(range(num_entries)), dtype=np.int8),
+                    'time_unit' : pd.Series([period]*num_entries, dtype='string'),
+                    'mean' : pd.Series(means, dtype=np.float32),
+                    #'std' : pd.Series(stds, dtype=np.float32),          
+                })
+            #self.con.append('predictions', df)
+            self.con.execute('INSERT INTO predictions SELECT * from df')
+        except BaseException as e:
+            print(e)
+            print(sample_forecast)
 
     def save_table(self, table_name, out_loc):
         self.con.execute(f'SELECT * from {table_name}').pl().write_parquet(out_loc)
