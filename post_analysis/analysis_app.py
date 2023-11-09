@@ -21,9 +21,10 @@ def load_gdf() -> gpd.GeoDataFrame:
     munis['CD_MUN'] = munis['CD_MUN'].str.slice(stop=-1)
     return munis.rename(columns={'CD_MUN': 'item_id'})
 
-@st.cache_resource
+#@st.cache_resource
 def join_items(gdf, results):
     return gdf.merge(results, on='item_id')
+    
 
 
 results = load_results()

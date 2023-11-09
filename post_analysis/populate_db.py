@@ -9,6 +9,7 @@ import polars as pl
 from datetime import datetime
 import re
 
+#Why do this instead of writing directly to DB as experimenting?? Flexibilit!!!
 class DBBuilder():
     def __init__(self, db_loc = ':memory:'):
         self.handler_dict = {
@@ -185,7 +186,6 @@ class DBBuilder():
 
     def handle_item_metrics(self, artifact, run_id, task_id):
         item_metrics = artifact.data
-        #Holy shit pandas is bad, this would all be one parallel task in polars with no reassignments
         item_metrics.columns = item_metrics.columns.str.replace(r"\W+", "_",regex=True)
         item_metrics['item_id'] = item_metrics['item_id'].astype('string')
         item_metrics['model_id'] = run_id
