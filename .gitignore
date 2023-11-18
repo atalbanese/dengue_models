@@ -12,3 +12,4 @@ metaflow_card_cache*
 preprocessing/metadata.txt
 data/cases/*.dbf
 data/cases/*.dbc
+*.pkl
