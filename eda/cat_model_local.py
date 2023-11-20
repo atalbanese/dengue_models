@@ -27,10 +27,9 @@ def create_data_dict(start_date,
                     'total_precipitation_sum', 
                     'temperature_2m', 
                     ],
-                    additional_features = ['month', 'pop'],
-                    return_dict = True
+                    additional_features = ['month', 'pop']
                     ):
-    to_return = (
+    return (
         all_data
         .select(['muni_id', 'start_date', target_var] + env_list + additional_features)
         .filter((pl.col('start_date')>=datetime.fromisoformat(start_date)-relativedelta(years=math.ceil(case_lookback/12))) & (pl.col('start_date')<datetime.fromisoformat(end_date)))
@@ -52,9 +51,8 @@ def create_data_dict(start_date,
         .drop_nulls()
         .select(pl.exclude(env_list))
         .rename({target_var: 'target'})
+        .partition_by('muni_id', as_dict=True)
     )
-
-    return to_return if not return_dict else to_return.partition_by('muni_id', as_dict=True)
 
 def get_features_for_muni(df, cat_fn=None, check_zeros=False):
     if check_zeros:
@@ -87,7 +85,6 @@ def handle_zero_case(muni_id):
         'cat_style': ['NA'],
         'error': ['Only zeros in training data'],
         'probabilities': ERROR_ARR
-
     }).cast({'date':pl.Date})
 
 def write_results(df: pl.DataFrame, save_dir, save_prefix, muni_id):
@@ -143,7 +140,7 @@ def make_relative_ternary(df:pl.DataFrame, expectations=None):
     )
 
 
-def train_global(train, cat_style=''):
+def train_and_test_clas(train, test, cat_style=''):
 
     #n_components = 15
     n_components = train['X'].shape[1]
@@ -153,14 +150,14 @@ def train_global(train, cat_style=''):
     categorical_features = [n_components-1],
     #l2_regularization=.05,
     #categorical_features=[15],
-    max_iter=15000, 
+    max_iter=2500, 
     #learning_rate=0.5,
     #max_leaf_nodes=None, 
     #min_samples_leaf=10,
     #max_bins=255,
     early_stopping=True,
     class_weight='balanced',
-    #validation_fraction=None
+    validation_fraction=None
     )
 
     ct = ColumnTransformer([
@@ -170,65 +167,49 @@ def train_global(train, cat_style=''):
     remainder='passthrough')
 
     train_x = ct.fit_transform(train['X'])
-    #test_x = ct.transform(test['X'])
+    test_x = ct.transform(test['X'])
 
     #sample_weight = compute_sample_weight('balanced', train['y'])
     reg.fit(train_x, train['y'], 
             #sample_weight=sample_weight
             )
-    
-    return reg, ct
-    #z =reg.predict(test_x)
+    z =reg.predict(test_x)
 
-def test_global(model, transformer, test, cat_style):
-    test_x = transformer.transform(test['X'])
-
-    z = model.predict(test_x)
-    p_hat = model.predict_proba(test_x)
     return pl.DataFrame({
         'predictions': z,
         'ground_truth': test['y'],
         'date': test['dates'],
         'muni_id': [test['muni_id']]*len(z),
         'cat_style': [cat_style]*len(z),
-        'error': ['NONE'] * len(z),
-        'probabilities': p_hat
+        'error': ['NONE'] * len(z)
     })
 
 def train_models():
     all_results = []
 
-    global_data = create_data_dict(TRAIN_START, TRAIN_END, ALL_DATA, env_list=[], return_dict=False)
-    global_data = (
-        global_data
-        .with_columns(pl.col('target').sum().over('muni_id').alias('muni_sum'))
-        #.filter(pl.col('muni_sum')!=0)
-        #.select(pl.exclude('muni_sum'))
-    )
+    train_dict = create_data_dict(TRAIN_START, TRAIN_END, ALL_DATA, env_list=[])
+    test_dict = create_data_dict(TEST_START, TEST_END, ALL_DATA, env_list=[])
 
-    skip_munis = global_data.filter(pl.col('muni_sum') == 0).select('muni_id').unique().to_series()
-    global_data = global_data.filter(pl.col('muni_sum')!=0).select(pl.exclude('muni_sum'))
-
-    test_dict = create_data_dict(TEST_START, TEST_END, ALL_DATA, env_list=[], return_dict=True)
-
-    train_data = get_features_for_muni(global_data, CAT_FN, check_zeros=False)
-    global_model, col_transformer = train_global(train_data, CAT_STYLE)
-
-    for k, v in tqdm(test_dict.items()):
-        if k not in skip_munis:
-            test_data = get_features_for_muni(v, CAT_FN, check_zeros=False)
-        else:
+    for k, v in tqdm(train_dict.items()):
+        train_data = get_features_for_muni(v, CAT_FN, check_zeros=True)
+        if train_data is None:
             results = handle_zero_case(k)
             all_results.append(results)
             #write_results(results, SAVE_DIR, SAVE_PREFIX, k)
             continue
 
+        if train_data['expectations'] is None:
+            test_data = get_features_for_muni(test_dict[k], CAT_FN, check_zeros=False)
+        else:
+            #Take expectations from training data and wrap them up with the relative classification cat_fn so we can use them on testing data
+            new_cat_fn = partial(CAT_FN, expectations = train_data['expectations'])
+            test_data = get_features_for_muni(test_dict[k], new_cat_fn, check_zeros=False)
 
     #Train Classifier
     #Test classifier
     #Log results to dataframe
         try:
-            results = test_global(global_model, col_transformer, test_data, CAT_STYLE)
+            results = train_and_test_clas(train_data, test_data, cat_style=CAT_STYLE)
         except BaseException as e:
             print(e)
             results = pl.DataFrame({
@@ -265,15 +246,13 @@ if __name__ == '__main__':
 
     EL = 12
     LC = 24
-    
     binary_error = [np.array([-999.0, -999.0])]
     ternary_error = [np.array([-999.0, -999.0, -999.0])]
-    SAVE_DIR = '/home/tony/dengue/dengue_models/results/'
-    SAVE_PREFIX = 'simple_ternary_global'
-    CAT_STYLE = 'simple_ternary_global'
-    CAT_FN = make_simple_ternary
     ERROR_ARR = ternary_error
-
+    SAVE_DIR = '/home/tony/dengue/dengue_models/results/'
+    SAVE_PREFIX = 'relative_ternary_local'
+    CAT_STYLE = 'relative_ternary_local'
+    CAT_FN = make_relative_ternary
     all_results_trained = train_models()
     all_results_trained_df = pl.concat(all_results_trained)
-    all_results_trained_df.write_parquet(os.path.join(SAVE_DIR, f'{SAVE_PREFIX}_all_results.parquet'))
+    all_results_trained_df.write_parquet(os.path.join(SAVE_DIR, f'{SAVE_PREFIX}_results.parquet'))
