@@ -117,7 +117,8 @@ for k, v in tqdm(sorted_clusters.items()):
 
     train_x = np.vstack(train_features)
     train_y = np.array(train_targets)
-
+    if train_y.sum() == 0:
+        continue
     test_x = np.vstack(test_features)
     test_y = np.array(test_targets)
 
@@ -133,17 +134,17 @@ for k, v in tqdm(sorted_clusters.items()):
     
     #step 3: train 
 
-    loss_fn = 'poisson' if train_y.sum() != 0 else 'squared_error'
+    #loss_fn = 'poisson' if train_y.sum() != 0 else 'squared_error'
 
     reg = HistGradientBoostingRegressor(
     random_state=42, 
-    max_iter=1000, 
-    loss=loss_fn,
-    max_leaf_nodes=None, 
-    min_samples_leaf=10,
-    l2_regularization=2.0, 
-    max_bins=255,
-    early_stopping=False)
+    max_iter=2500, 
+    loss='poisson',
+    #max_leaf_nodes=None, 
+    #min_samples_leaf=10,
+    #l2_regularization=2.0, 
+    #max_bins=255,
+    early_stopping=True)
     reg.fit(train_x, train_y)
 
     train_preds = reg.predict(train_x)
@@ -158,12 +159,12 @@ for k, v in tqdm(sorted_clusters.items()):
         reg = HistGradientBoostingRegressor(
         random_state=42, 
         max_iter=1000, 
-        loss=loss_fn,
-        max_leaf_nodes=None, 
-        min_samples_leaf=10,
-        l2_regularization=2.0, 
-        max_bins=255,
-        early_stopping=False)
+        loss='2500',
+       # max_leaf_nodes=None, 
+       # min_samples_leaf=10,
+        #l2_regularization=2.0, 
+        #max_bins=255,
+        early_stopping=True)
           
         reg.fit(orig_train_x, train_y)
 
@@ -174,8 +175,9 @@ for k, v in tqdm(sorted_clusters.items()):
         calced_clusters[k]['no_parent_rmse'] = np.sqrt(((test_preds - test_y) ** 2).mean())
         calced_clusters[k]['parent_score_delta'] = calced_clusters[k]['no_parent_score'] - calced_clusters[k]['score']
         calced_clusters[k]['parent_rmse_delta'] = calced_clusters[k]['no_parent_rmse'] - calced_clusters[k]['rmse']
+        calced_clusters[k]['no_parent_predictions'] = test_preds
     
-    with open('calced_clusters.pkl', 'wb') as f:
+    with open('calced_clusters_2.pkl', 'wb') as f:
         pickle.dump(calced_clusters, f)
 
         
