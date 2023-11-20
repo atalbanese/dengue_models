@@ -174,14 +174,15 @@ def train_and_test_clas(train, test, cat_style=''):
             #sample_weight=sample_weight
             )
     z =reg.predict(test_x)
-
+    p_hat = reg.predict_proba(test_x)
     return pl.DataFrame({
         'predictions': z,
         'ground_truth': test['y'],
         'date': test['dates'],
         'muni_id': [test['muni_id']]*len(z),
         'cat_style': [cat_style]*len(z),
-        'error': ['NONE'] * len(z)
+        'error': ['NONE'] * len(z),
+        'probabilities': p_hat
     })
 
 def train_models():

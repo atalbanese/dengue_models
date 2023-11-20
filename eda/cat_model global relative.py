@@ -184,13 +184,15 @@ def test_global(model, transformer, test, cat_style):
     test_x = transformer.transform(test['X'])
 
     z = model.predict(test_x)
+    p_hat = model.predict_proba(test_x)
     return pl.DataFrame({
         'predictions': z,
         'ground_truth': test['y'],
         'date': test['dates'],
         'muni_id': [test['muni_id']]*len(z),
         'cat_style': [cat_style]*len(z),
-        'error': ['NONE'] * len(z)
+        'error': ['NONE'] * len(z),
+        'probabilities': p_hat
     })
 
 def train_models():
