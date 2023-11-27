@@ -251,39 +251,6 @@ class GEERequestor():
         'owner':self
         })
     
-    # def get_muni_aggregator(self):
-    #     @staticmethod
-    #     def agg_to_munis(img):
-    #         img_stats_1 =  img.reduceRegions(**{
-    #             'collection': self.assets['munis_simple_1'],
-    #             'reducer':  self.assets['reducer'].splitWeights(),
-    #             'scale': self.assets['scale'],  # meters
-    #             'crs': self.assets['crs'],
-    #         })
-
-    #         img_stats_2 =  img.reduceRegions(**{
-    #             'collection': self.assets['munis_simple_2'],
-    #             'reducer': self.assets['reducer'].splitWeights(),
-    #             'scale': self.assets['scale'],
-    #             'crs': self.assets['crs'],
-    #         })
-
-    #         return img_stats_1.merge(img_stats_2)
-    #     return agg_to_munis
-
-    # def get_muni_aggregator(self):
-    #     @staticmethod
-    #     def agg_to_munis(img):
-
-    #         return self.assets['munis_simple'].map(lambda f: ee.Feature(f.geometry(), img.reduceRegion(
-    #             reducer = self.assets['reducer'].splitWeights(),
-    #             geometry = f.geometry(),
-    #             scale = self.assets['scale'],
-    #             crs = self.assets['crs'],
-    #             bestEffort = True
-    #         ).combine(f.toDictionary())))
-
-    #     return agg_to_munis
     def get_muni_aggregator(self):
         num_splits = 4
         @staticmethod

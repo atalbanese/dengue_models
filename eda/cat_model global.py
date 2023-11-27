@@ -269,11 +269,11 @@ if __name__ == '__main__':
     binary_error = [np.array([-999.0, -999.0])]
     ternary_error = [np.array([-999.0, -999.0, -999.0])]
     SAVE_DIR = '/home/tony/dengue/dengue_models/results/'
-    SAVE_PREFIX = 'simple_ternary_global'
-    CAT_STYLE = 'simple_ternary_global'
-    CAT_FN = make_simple_ternary
-    ERROR_ARR = ternary_error
+    SAVE_PREFIX = 'simple_binary_global'
+    CAT_STYLE = 'simple_binary_global'
+    CAT_FN = make_simple_binary
+    ERROR_ARR = binary_error
 
     all_results_trained = train_models()
     all_results_trained_df = pl.concat(all_results_trained)
-    all_results_trained_df.write_parquet(os.path.join(SAVE_DIR, f'{SAVE_PREFIX}_all_results.parquet'))
+    all_results_trained_df.write_parquet(os.path.join(SAVE_DIR, f'{SAVE_PREFIX}__results.parquet'))

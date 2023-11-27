@@ -270,10 +270,10 @@ if __name__ == '__main__':
     binary_error = [np.array([-999.0, -999.0])]
     ternary_error = [np.array([-999.0, -999.0, -999.0])]
     SAVE_DIR = '/home/tony/dengue/dengue_models/results/'
-    SAVE_PREFIX = 'relative_ternary_global'
-    CAT_STYLE = 'relative_ternary_global'
-    CAT_FN = make_relative_ternary
-    ERROR_ARR = ternary_error
+    SAVE_PREFIX = 'relative_binary_global'
+    CAT_STYLE = 'relative_binary_global'
+    CAT_FN = make_relative_binary
+    ERROR_ARR = binary_error
 
     all_results_trained = train_models()
     
