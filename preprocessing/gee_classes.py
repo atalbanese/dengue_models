@@ -316,6 +316,15 @@ class GEESDMRequestor(GEERequestor):
             ).clip(self.assets['bbox'])
         )
 
+    def get_classified_image(self, start_date, end_date, name):
+        classified = self.assemble_data(start_date, end_date).classify(self.classifier)
+        ee.batch.Export.image.toDrive({
+            'image': classified,
+            'description': name,
+            'folder': 'dengue_img_exports',
+            
+            })
+
     def sample_collection(self, start_date, end_date, dataset):
         #Samples a histogram with set breaks then does some array magic to get each bin as its own image
         return (ee.ImageCollection(dataset['collection']
