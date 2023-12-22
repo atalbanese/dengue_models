@@ -1,6 +1,13 @@
 from itertools import chain
 from datetime import datetime
 import polars as pl
+from typing import Union
+from sklearn.ensemble import HistGradientBoostingClassifier
+from sklearn.linear_model import Ridge
+from functools import partial
+from sklearn.compose import make_column_transformer, make_column_selector
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import OrdinalEncoder, RobustScaler
 
 ## Reshaping 
 def reshape_data(
@@ -27,8 +34,8 @@ def reshape_data(
 
 
     Args:
-        start_date (str): Start date of reshaped target data. Data from prior to start date will be included if case_lookback > 0
-        end_date (str): End date of reshaped target data.
+        start_date (str): Start date of reshaped target data. Data from prior to start date will be included if case_lookback > 0. Inclusive
+        end_date (str): End date of reshaped target data. Exclusive
         all_data (pl.DataFrame): Dataframe containing case data and any exogenous variables
         target_var (str, optional): Column in input dataframe we are targeting. Change to 'count' to target raw counts instead of case rate. Defaults to "cases_per_100k".
         case_lookback (int, optional): How many months of case history we want to include. Overridden if specific_cases is set. Defaults to 24.
@@ -213,3 +220,98 @@ def make_simple_ternary(df:pl.DataFrame, expectations=None):
         pl.Dataframe: Dataframe with categorical targets column
     """
     return df.with_columns(pl.col('target').cut([100,300], labels=['0','1', '2']).alias('cat_target'))
+
+## Model Training
+
+def run_model(
+        data : pl.DataFrame,
+        train_start : str,
+        train_end : str,
+        test_end : str,
+        clf_model: Union(Ridge, HistGradientBoostingClassifier),
+        env_list: list(str) = [],
+        additional_features: list(str) = [],
+        cat_vars: list(str) = ['month'],
+        cat_fn: callable = make_simple_binary,
+        cat_style: str = 'simple_binary',
+        case_lookback: int = 24,
+        case_lag: int = 1,
+        specific_cases: list(int) = None,
+        env_lookback: int = 12,
+        env_lag: int = 0,
+        specific_env: list(int) = None
+) -> dict:
+
+    additional_features = additional_features + cat_vars
+
+    train_shaped = reshape_data(
+        train_start, 
+        train_end, 
+        data, 
+        case_lookback=case_lookback, 
+        case_lag=case_lag, 
+        specific_cases=specific_cases,
+        env_lookback=env_lookback,
+        env_lag=env_lag,
+        specific_env=specific_env,
+        env_list=env_list,
+        additional_features=additional_features
+    )
+
+    test_shaped = reshape_data(
+        train_end, 
+        test_end, 
+        data, 
+        case_lookback=case_lookback, 
+        case_lag=case_lag, 
+        specific_cases=specific_cases,
+        env_lookback=env_lookback,
+        env_lag=env_lag,
+        specific_env=specific_env,
+        env_list=env_list,
+        additional_features=additional_features
+    )
+
+    train_data = get_features(train_shaped, cat_fn, cat_vars)
+    expectations = train_data['expectations']
+    new_cat_fn = partial(cat_fn, expectations = expectations)
+    test_data = get_features(test_shaped, new_cat_fn, cat_vars)
+
+    return train_and_test_model(train_data, test_data, clf_model, cat_style)
+
+
+def train_and_test_model(
+        train_data, 
+        test_data, 
+        clf_model, 
+        cat_style
+    ) -> dict:
+
+    ct = make_column_transformer(
+        (OrdinalEncoder(), make_column_selector(dtype_include='category')),
+        (RobustScaler(), make_column_selector(dtype_exclude='category')),
+    
+    remainder='passthrough',
+    verbose_feature_names_out=False)
+
+    model = make_pipeline(ct, clf_model).set_output(transform='pandas')
+
+    model.fit(train_data['X'], train_data['y'])
+
+    z = model.predict(test_data['X'])
+    p_hat = model.predict_proba(test_data['X'])
+
+    return {
+            'results': pl.DataFrame({
+                'predictions': z,
+                'ground_truth': test_data['y'],
+                'date': test_data['dates'],
+                'muni_id': test_data['muni_id'],
+                'cat_style': [cat_style]*len(z),
+                'probabilities': p_hat
+            }),
+            'model': model
+    }
+
+## Results Analysis
+
