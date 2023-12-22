@@ -13,3 +13,4 @@ preprocessing/metadata.txt
 data/cases/*.dbf
 data/cases/*.dbc
 *.pkl
+*Zone.Identifier

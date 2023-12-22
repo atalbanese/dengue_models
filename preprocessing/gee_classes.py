@@ -282,6 +282,10 @@ class GEERequestor():
         delta = relativedelta(end_date, start_date)
         return delta.years*mult[0] + delta.months*mult[1] + delta.weeks*mult[2]
     
+class GEELandCoverRequestor(GEERequestor):
+    def __init__(self, config, downloader:GEEDownloader=None):
+        super().__init__(config, downloader=downloader)
+    
 class GEESDMRequestor(GEERequestor):
     def __init__(self, config, downloader:GEEDownloader=None):
         super().__init__(config, downloader=downloader)
