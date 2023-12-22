@@ -1,13 +1,22 @@
 from itertools import chain
 from datetime import datetime
 import polars as pl
+import geopandas as gpd
 from typing import Union
 from sklearn.ensemble import HistGradientBoostingClassifier
-from sklearn.linear_model import Ridge
+from sklearn.linear_model import RidgeClassifier
 from functools import partial
 from sklearn.compose import make_column_transformer, make_column_selector
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import OrdinalEncoder, RobustScaler
+from sklearn.metrics import classification_report, confusion_matrix
+from sklearn.metrics import ConfusionMatrixDisplay
+import colorsys
+import matplotlib.tri as tri
+from matplotlib.colors import LinearSegmentedColormap
+from mpl_toolkits.axes_grid1.inset_locator import inset_axes
+import numpy as np
+
 
 ## Reshaping 
 def reshape_data(
@@ -49,7 +58,10 @@ def reshape_data(
 
     Returns:
         pl.DataFrame: Dataframe with 'target' column, with one entry per prediction month. Additional columns consist of lagged case history, environmental history, and static features. 
+
     """
+    
+
     return (
         all_data.select(
             ["muni_id", "start_date", target_var] + env_list + additional_features
@@ -221,6 +233,14 @@ def make_simple_ternary(df:pl.DataFrame, expectations=None):
     """
     return df.with_columns(pl.col('target').cut([100,300], labels=['0','1', '2']).alias('cat_target'))
 
+def get_cat_dict():
+    return {
+    'relative_ternary': make_relative_ternary,
+    'relative_binary': make_relative_binary,
+    'simple_binary': make_simple_binary,
+    'simple_ternary': make_simple_ternary
+}
+
 ## Model Training
 
 def run_model(
@@ -228,18 +248,18 @@ def run_model(
         train_start : str,
         train_end : str,
         test_end : str,
-        clf_model: Union(Ridge, HistGradientBoostingClassifier),
-        env_list: list(str) = [],
-        additional_features: list(str) = [],
-        cat_vars: list(str) = ['month'],
+        clf_model: Union[RidgeClassifier, HistGradientBoostingClassifier],
+        env_list: list[str] = [],
+        additional_features: list[str] = [],
+        cat_vars: list[str] = ['month'],
         cat_fn: callable = make_simple_binary,
         cat_style: str = 'simple_binary',
         case_lookback: int = 24,
         case_lag: int = 1,
-        specific_cases: list(int) = None,
+        specific_cases: list[int] = None,
         env_lookback: int = 12,
         env_lag: int = 0,
-        specific_env: list(int) = None
+        specific_env: list[int] = None
 ) -> dict:
 
     additional_features = additional_features + cat_vars
@@ -277,14 +297,30 @@ def run_model(
     new_cat_fn = partial(cat_fn, expectations = expectations)
     test_data = get_features(test_shaped, new_cat_fn, cat_vars)
 
-    return train_and_test_model(train_data, test_data, clf_model, cat_style)
+    z, p_hat, model = train_and_test_model(train_data, test_data, clf_model)
 
+    return {
+            'results': pl.DataFrame({
+                'predictions': z,
+                'ground_truth': test_data['y'],
+                'date': test_data['dates'],
+                'muni_id': test_data['muni_id'],
+                'cat_style': [cat_style]*len(z),
+                'probabilities': p_hat,
+                'env_vars': [env_list]*len(z),
+                'additional_vars': [additional_features]*len(z),
+                'case_lag': [case_lag]*len(z),
+                'env_lag': [env_lag]*len(z),
+                'specific_cases': [specific_cases]*len(z) if specific_cases is not None else [[specific_cases]]*len(z),
+                'specific_env': [specific_env]*len(z) if specific_env is not None else [[specific_env]]*len(z)
+            }),
+            'model': model
+    }
 
 def train_and_test_model(
         train_data, 
         test_data, 
         clf_model, 
-        cat_style
     ) -> dict:
 
     ct = make_column_transformer(
@@ -299,19 +335,179 @@ def train_and_test_model(
     model.fit(train_data['X'], train_data['y'])
 
     z = model.predict(test_data['X'])
-    p_hat = model.predict_proba(test_data['X'])
+    if hasattr(model, 'predict_proba'):
+        p_hat = model.predict_proba(test_data['X'])
+    else:
+        p_hat = [[None]] *len(z)
 
-    return {
-            'results': pl.DataFrame({
-                'predictions': z,
-                'ground_truth': test_data['y'],
-                'date': test_data['dates'],
-                'muni_id': test_data['muni_id'],
-                'cat_style': [cat_style]*len(z),
-                'probabilities': p_hat
-            }),
-            'model': model
-    }
+    return z, p_hat, model
+
 
 ## Results Analysis
+def classify_results(predictions: pl.DataFrame):
+    import matplotlib.pyplot as plt
+    f1_report = classification_report(predictions.select('ground_truth').to_series(),predictions.select('predictions').to_series())
+    print(f1_report)
+    cm = ConfusionMatrixDisplay.from_predictions(predictions.select('ground_truth').to_series(),predictions.select('predictions').to_series())
+    #cm.plot()
+   # plt.show()
+
+    return f1_report, cm
+
+## Plotting Results
+### Helpers
+def rgb_to_hsl(rgb):
+    r, g, b = rgb
+    h, l, s = colorsys.rgb_to_hls(r, g, b)
+    return h, l, s
+
+# Function to convert HSL to RGB
+def hsl_to_rgb(hls):
+    h, l, s = hls
+    r, g, b = colorsys.hls_to_rgb(h+.02, min(1.0, l + 0.02), min(1.0, s - 0.25))
+    return r, g, b
+
+def plot_filled_ternary_gradient(axis, cmap='viridis'):
+    values = np.array([1.0, 0.5, 0.0])  #End values for triangle points
+    # Define the vertices of the ternary plot
+    corners = np.array([[0, 0], [1, 0], [0.5, 0.75**0.5]])
+    axins = inset_axes(axis, width='25%', height='25%', loc='lower left', borderpad=3)
+    axins.set_aspect('equal')
+
+    # Create a ternary grid
+    triang = tri.Triangulation(corners[:, 0], corners[:, 1])
+
+    # Plot the filled ternary diagram with a continuous color gradient
+    axins.tripcolor(triang,
+                         values, 
+                         cmap=cmap, shading='gouraud')
+    
+    axins.get_xaxis().set_visible(False)
+    axins.get_yaxis().set_visible(False)
+
+    axins.text(-.15,-.16, 'Low', fontsize=16, c='black')
+
+    axins.text(.75,-.16, 'Medium', fontsize=16, c='black')
+
+    axins.text(.35, .95, 'High', fontsize=16, c='black')
+
+def plot_ternary(
+        predictions: pl.DataFrame, 
+        munis: gpd.GeoDataFrame, 
+        month: str, 
+        title:str,
+        accuracy:bool=False):
+    import matplotlib.pyplot as plt
+    from palettable.lightbartlein.diverging import BlueGrey_2 as imp_palette
+
+    plt.style.use('https://github.com/dhaitz/matplotlib-stylesheets/raw/master/pitayasmoothie-light.mplstyle')
+    plt.rcParams['axes.grid'] = False
+    plt.rc('legend',fontsize=10)
+    custom_cmap = LinearSegmentedColormap.from_list('custom', 
+                                                    [hsl_to_rgb(rgb_to_hsl((1, 0, 0))), 
+                                                     hsl_to_rgb(rgb_to_hsl((0, 1, 0))), 
+                                                     hsl_to_rgb(rgb_to_hsl((0, 0, 1)))])
+
+    current = (predictions
+           .with_columns(
+               pl.col('probabilities').list.reverse()
+           )
+           .with_columns(
+               
+               pl.col('probabilities').list.to_struct().struct.rename_fields(['high_p','medium_p', 'low_p' ]).alias('x'),
+               pl.when(pl.col('predictions')==pl.col('ground_truth')).then(pl.lit('Correct Prediction')).otherwise(pl.lit('Incorrect Prediction')).alias('correct'),
+               pl.when(pl.col('ground_truth')==0).then(1.0).otherwise(0).alias('low'),
+               pl.when(pl.col('ground_truth')==1).then(1.0).otherwise(0).alias('medium'),
+               pl.when(pl.col('ground_truth')==2).then(1.0).otherwise(0).alias('high'),
+               )
+            .with_columns(
+                pl.concat_list(['high', 'medium', 'low']).alias('truth_color')
+            )
+           .unnest('x')
+           .filter(pl.col('date')== datetime.fromisoformat(month))
+           )
+
+    results = munis.merge(current.to_pandas(), left_on='CD_MUN', right_on='muni_id', how='right')
+
+    results['pastel_colors'] = results['probabilities'].apply(lambda rgb: hsl_to_rgb(rgb_to_hsl(rgb)))
+
+    results['truth_color'] = results['truth_color'].apply(lambda rgb: hsl_to_rgb(rgb_to_hsl(rgb)))
+    fig, ax = plt.subplots(nrows=1, ncols=2, figsize=(16.33,7.5), constrained_layout=True)
+
+    results.plot(color=results['pastel_colors'], ax=ax[0], edgecolor='white', linewidth=0.05)
+    ax[0].set_title(f'Predicted Probabilities - {month}', fontsize=24, )
+
+    if not accuracy:
+        results.plot(color=results['truth_color'], ax=ax[1], edgecolor='white', linewidth=0.05)
+        ax[1].set_title(f'Ground Truth - {month}', fontsize=24)
+
+    else:
+        results.plot(column='correct', 
+                  legend=True, 
+                  legend_kwds={"fontsize": 16, 'loc': 'lower right', 'bbox_to_anchor': (.4, .03)},
+                  categorical=True, 
+                  cmap=imp_palette.mpl_colormap, ax=ax[1], edgecolor='white', linewidth=0.05)
+        ax[1].set_title(f'Prediction Accuracy - {month}', fontsize=24)
+
+    ax[0].get_xaxis().set_visible(False)
+    ax[0].get_yaxis().set_visible(False)
+    ax[1].get_xaxis().set_visible(False)
+    ax[1].get_yaxis().set_visible(False)
+    fig.suptitle(title, fontsize=30, fontweight='demibold')
+
+    plot_filled_ternary_gradient(ax[0], cmap=custom_cmap)
+
+    return fig, ax
+
+
+def plot_binary(
+        predictions: pl.DataFrame, 
+        munis: gpd.GeoDataFrame, 
+        month: str, 
+        title:str,
+        accuracy:bool=False):
+    import matplotlib.pyplot as plt
+    from palettable.lightbartlein.diverging import BlueGrey_2 as imp_palette
+
+    plt.style.use('https://github.com/dhaitz/matplotlib-stylesheets/raw/master/pitayasmoothie-light.mplstyle')
+    plt.rcParams['axes.grid'] = False
+    plt.rc('legend',fontsize=10)
+
+    current = (predictions
+           .with_columns(
+               pl.col('probabilities').list.to_struct().struct.rename_fields(['low_p', 'high_p']).alias('x'),
+               pl.when(pl.col('predictions')==pl.col('ground_truth')).then(pl.lit('Correct Prediction')).otherwise(pl.lit('Incorrect Prediction')).alias('correct'),
+               pl.when(
+                   pl.col('ground_truth')==1.0
+               ).then(pl.lit('High Case Rate'))
+               .otherwise(pl.lit('Low Case Rate')).alias('truth_label')
+               )
+           .unnest('x')
+           .filter(pl.col('date')== datetime.fromisoformat(month))
+           )
+    
+    results = munis.merge(current.to_pandas(), left_on='CD_MUN', right_on='muni_id', how='right')
+
+    fig, ax = plt.subplots(nrows=1, ncols=2, figsize=(16.33,8.25), constrained_layout=True)
+
+    
+    results.plot(ax= ax[0], column=results['high_p'],  cmap='coolwarm',edgecolor='white', linewidth=0.05, legend=True, 
+                  legend_kwds={'orientation': 'horizontal', 'shrink': 0.3, 'anchor': (.9,-25),'label': 'High Case Rate Probability'})
+    ax[0].set_title(f'Predicted Probabilities - {month}', fontsize=20, )
+
+    if not accuracy:
+        results.plot(ax= ax[1],column=results['truth_label'],  cmap='coolwarm_r', edgecolor='white', linewidth=0.05, legend=True, categorical=True,  legend_kwds={"fontsize": 16, 'loc': 'lower right', 'bbox_to_anchor': (.95, .12)})
+        ax[1].set_title(f'Ground Truth - {month}', fontsize=20)
+    else:
+        results.plot(ax= ax[1],column=results['correct'],  cmap=imp_palette.mpl_colormap, edgecolor='white', linewidth=0.05, legend=True, categorical=True,  legend_kwds={"fontsize": 16, 'loc': 'lower right', 'bbox_to_anchor': (1.0, .12)})
+        ax[1].set_title(f'Prediction Accuracy - {month}', fontsize=20)
+    
+    ax[0].get_xaxis().set_visible(False)
+    ax[0].get_yaxis().set_visible(False)
+    ax[1].get_xaxis().set_visible(False)
+    ax[1].get_yaxis().set_visible(False)
+
+    fig.suptitle(title, fontsize=30, fontweight='demibold')
+
+    return fig, ax
 
