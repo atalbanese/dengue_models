@@ -1,13 +1,8 @@
 import ee
 import re
-import time
-import gdown
-from collections import deque
 import tomllib
 from gee_classes import GEEDownloader, GEERequestor, GEESDMRequestor
 import click
-from datetime import datetime
-from dateutil.relativedelta import relativedelta
 import os
 import polars as pl
 import glob
@@ -22,9 +17,6 @@ import glob
 @click.option('--sdm', is_flag=True, type=bool, default=False)
 @click.option('--dynamic', is_flag=True, type=bool, default=False)
 def main(config_file, clean, auth, merge_only, sdm, dynamic): 
-    #TODO: dynamic, sdm, and merging should probably be split
-    #TODO: could request all 3 sdms at once without generating too many files
-    #TODO: dynamic and sdm need different scales
     #TODO: test combined reducer to get mean, median, minmax var, std, all at same time
     if auth:
         ee.Authenticate(auth_mode='notebook')

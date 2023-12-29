@@ -9,7 +9,7 @@ from functools import partial
 from sklearn.compose import make_column_transformer, make_column_selector
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import OrdinalEncoder, RobustScaler
-from sklearn.metrics import classification_report, confusion_matrix
+from sklearn.metrics import classification_report
 from sklearn.metrics import ConfusionMatrixDisplay
 import colorsys
 import matplotlib.tri as tri
@@ -150,7 +150,7 @@ def get_features(df: pl.DataFrame,
 ## Categorical Target Transformation 
 
 def make_relative_ternary(df:pl.DataFrame, expectations: pl.DataFrame = None):
-    """_summary_
+    """Relative ternary categorical fn
 
     Args:
         df (pl.DataFrame): _description_
@@ -261,6 +261,29 @@ def run_model(
         env_lag: int = 0,
         specific_env: list[int] = None
 ) -> dict:
+    """Trains and tests a model, first reshaping provided data based on specified arguments. Returns model predictions on the test set as well as information on input parameters.
+
+    Args:
+        data (pl.DataFrame): Dataframe containing dengue data
+        train_start (str): Start date for training data
+        train_end (str): End date for training data
+        test_end (str): End Date for testing data
+        clf_model (Union[RidgeClassifier, HistGradientBoostingClassifier]): A classification model compatible with the sklearn api
+        env_list (list[str], optional): List of environmental variables to include, if any. Defaults to [].
+        additional_features (list[str], optional): List of static features to include, if any. Defaults to [].
+        cat_vars (list[str], optional): List of categorical variables to include. Defaults to ['month'].
+        cat_fn (callable, optional): Function to transform continuous target (case rate) to categorical target. Defaults to make_simple_binary.
+        cat_style (str, optional): Descriptive name of cat_fn. Defaults to 'simple_binary'.
+        case_lookback (int, optional): How many months of prior case data to include. Overridden by setting specific_cases. Defaults to 24.
+        case_lag (int, optional): Gap between prediction month and prior cases. Increase to increase prediction window. Defaults to 1.
+        specific_cases (list[int], optional): List of prior case months to include, overrides case_lookback. For ex, [1,12,24] includes cases from 1 month ago, 12 months ago, and 24 months ago but not the months in-between. Defaults to None.
+        env_lookback (int, optional): Prior months of environmental features to include. Defaults to 12.
+        env_lag (int, optional): Lag between prediction month and known environmental variables. Defaults to 0.
+        specific_env (list[int], optional): Similar to specific_cases, use if you only want to include environmental data from certain months. Defaults to None.
+
+    Returns:
+        dict: Dict containing dataframe of results on the test set and the trained model
+    """
 
     additional_features = additional_features + cat_vars
 

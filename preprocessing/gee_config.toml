@@ -3,27 +3,30 @@ crs = 'EPSG:4326'
 ##If you are getting 'computed image too large' error make this number larger
 scale = 1000
 reducer = 'median'
+#Location of municipio polygon collection on google drive
 munis = 'projects/ee-dengue-proof-of-concept/assets/munis_simple'
-munis_1 = 'projects/ee-dengue-proof-of-concept/assets/munis_simple_1'
-munis_2 = 'projects/ee-dengue-proof-of-concept/assets/munis_simple_2'
+#munis_1 = 'projects/ee-dengue-proof-of-concept/assets/munis_simple_1'
+#munis_2 = 'projects/ee-dengue-proof-of-concept/assets/munis_simple_2'
 start_date = '2001-01-01'
 end_date = '2021-01-01'
 agg_unit = 'months'
-#24 months works well for sdm, 72 works for agg
+#How many time units to request at once. Decrease if you are getting errors. 24 months works well for sdm, 72 works for agg
 num_units = 72
 drive_folder = 'dengue_export_test'
+#Publically available link to the google folder above
 drive_link = 'https://drive.google.com/drive/folders/18_-oyZdy2lacadC6EA_89KX08LzUassE'
 save_dir = './data/gee_exports_test'
 retries = 2
 
 [temporal_sdm]
 lookback_window = 60
-#still need to implement
 use_pop = true
 #aegypti, albopictus, or both
 species = 'aegypti'
 num_absence_points = 200
 
+##Define the datasets used to build the species distribution model
+##Min, max, and steps set the parameter of the histogram generated from each dataset
 [[sdm_datasets]]
 collection = 'ECMWF/ERA5_LAND/DAILY_AGGR'
 parameter = 'total_precipitation_sum'
@@ -38,7 +41,7 @@ min = 280
 max = 315
 steps = 10
 
-
+#Datasets to directly aggregate and download
 [[datasets]]
 collection = 'ECMWF/ERA5_LAND/DAILY_AGGR'
 parameter = 'total_precipitation_min'
