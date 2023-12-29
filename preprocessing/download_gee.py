@@ -10,12 +10,12 @@ import glob
 
 
 @click.command
-@click.option('--config-file', type=str, default='preprocessing/gee_config.toml')
-@click.option('--clean', is_flag=True, type=bool, default=False)
-@click.option('--auth', is_flag=True, type=bool, default=False)
-@click.option('--merge-only', is_flag=True, type=bool, default=False)
-@click.option('--sdm', is_flag=True, type=bool, default=False)
-@click.option('--dynamic', is_flag=True, type=bool, default=False)
+@click.option('--config-file', type=str, default='preprocessing/gee_config.toml', help='Location of config file')
+@click.option('--clean', is_flag=True, type=bool, default=False, help='Clean up individual .csv files after merging')
+@click.option('--auth', is_flag=True, type=bool, default=False, help='Run GEE authorization. Do this if you are getting auth errors')
+@click.option('--merge-only', is_flag=True, type=bool, default=False, help='Do not download anything, just attempt to merge existing files. Use this if you have manually downloaded files or in the event of a crash during downloading')
+@click.option('--sdm', is_flag=True, type=bool, default=False, help='Train and download SDM output as specified in the config file')
+@click.option('--dynamic', is_flag=True, type=bool, default=False, help='Train and download dynamic variables as specified in the config file')
 def main(config_file, clean, auth, merge_only, sdm, dynamic): 
     #TODO: test combined reducer to get mean, median, minmax var, std, all at same time
     if auth:
