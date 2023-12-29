@@ -13,10 +13,10 @@ def cli():
     pass
 
 @cli.command('download')
-@click.option('--save-dir', type=str, default='./data/cases/')
-@click.option('--disease', default='DENG')
-@click.option('--start-year', default=2000)
-@click.option('--end-year', default=2021)
+@click.option('--save-dir', type=str, default='./data/cases/', help='location to save yearly disease data')
+@click.option('--disease', default='DENG', help='four character code specifying target disease, codes can be looked up through pysus or SINAN')
+@click.option('--start-year', default=2000, help='start year for disease data')
+@click.option('--end-year', default=2021, help='end year for disease data')
 def download(save_dir, disease, start_year, end_year):
     requested_years = set(range(start_year, end_year+1))
     completed_years = []
@@ -44,16 +44,16 @@ def consolidate(loc = './data/cases/*BR*', save_dir = './data/cases/processed'):
             pl.read_parquet(os.path.join(f, '*.parquet')).write_parquet(save_file)
 
 @cli.command('agg-data')
-@click.option('--pop-data', type=str, default='./data/brazil/muni_pop.xlsx')
-@click.option('--muni-data', type=str, default='./data/brazil/munis/munis_simple.shp')
-@click.option('--disease-data', type=str, default='./data/cases/processed/*.parquet')
-@click.option('--week', is_flag=True, type=bool, default=False)
-@click.option('--month', is_flag=True, type=bool, default=False)
-@click.option('--day', is_flag=True, type=bool, default=False)
-@click.option('--all', is_flag=True, type=bool, default=False)
-@click.option('--save-dir', type=str, default='./data/cases/agged/')
-@click.option('--start-year', default=2001)
-@click.option('--end-year', default=2021)
+@click.option('--pop-data', type=str, default='./data/brazil/muni_pop.xlsx', help='location of population data spreadsheet downloaded from IBGE')
+@click.option('--muni-data', type=str, default='./data/brazil/munis/munis_simple.shp', help='location of municipio shapefile downloaded from IBGE')
+@click.option('--disease-data', type=str, default='./data/cases/processed/*.parquet', help='save dir specified using download command')
+@click.option('--week', is_flag=True, type=bool, default=False, help='aggregate case counts to weekly totals')
+@click.option('--month', is_flag=True, type=bool, default=False, help='aggregate case counts to monthly totals')
+@click.option('--day', is_flag=True, type=bool, default=False, help='aggregate case counts to daily totals')
+@click.option('--all', is_flag=True, type=bool, default=False, help='combine all datasets without temporal aggregation')
+@click.option('--save-dir', type=str, default='./data/cases/agged/', help='save dir for aggregated files')
+@click.option('--start-year', default=2001, help='year to start processing files')
+@click.option('--end-year', default=2021, help='year to end processing files')
 def agg_data(
     pop_data,
     muni_data,
