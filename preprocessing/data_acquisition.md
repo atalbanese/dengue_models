@@ -36,5 +36,5 @@
         After download you can specify save directory, which disease you are targeting, and the yearly range
 
     python download_disease_data.py agg-data
-        Downloaded data is saved into individual years. Agg-data allows you to combine those years, and aggregate cases to daily, monthly, or weekly case counts. You will need access to population data and a municipio shapefile to perform this aggregation. Those should be included with this package, they have been acquired from IBGE. 
+        Downloaded data is saved into individual years. Agg-data allows you to combine those years, and aggregate cases to daily, monthly, or weekly case counts. You will need access to population data and a municipio shapefile to perform this aggregation. Those should be included with this package.
 
